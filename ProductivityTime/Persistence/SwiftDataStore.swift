@@ -7,7 +7,6 @@ final class SwiftDataStore: SessionRepository {
 
     init(container: ModelContainer) throws {
         context = ModelContext(container)
-        try recoverInterruptedDeliveries()
     }
 
     static func makeInMemoryContainer() throws -> ModelContainer {
@@ -122,7 +121,7 @@ final class SwiftDataStore: SessionRepository {
         return record
     }
 
-    private func recoverInterruptedDeliveries() throws {
+    func recoverInterruptedDeliveries() throws {
         let descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.deliveryStateRawValue == "delivering" })
         let interruptedRecords = try context.fetch(descriptor)
         guard !interruptedRecords.isEmpty else {

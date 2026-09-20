@@ -18,6 +18,7 @@ protocol SessionRepository {
     func saveCompleted(_ session: CompletedSession) throws
     func completedSessions() throws -> [CompletedSession]
     func pendingDeliverySessions() throws -> [CompletedSession]
+    func recoverInterruptedDeliveries() throws
     func updateDeliveryState(sessionID: UUID, to state: DeliveryState) throws
     func saveActive(_ snapshot: ActiveSessionSnapshot?) throws
     func loadActive() throws -> ActiveSessionSnapshot?

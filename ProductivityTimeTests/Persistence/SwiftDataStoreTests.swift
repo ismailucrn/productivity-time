@@ -121,9 +121,24 @@ final class SwiftDataStoreTests: XCTestCase {
         try firstStore.updateDeliveryState(sessionID: interrupted.id, to: .delivering)
 
         let restartedStore = try SwiftDataStore(container: container)
+        try restartedStore.recoverInterruptedDeliveries()
 
         XCTAssertEqual(try restartedStore.pendingDeliverySessions().map(\.id), [interrupted.id])
         XCTAssertEqual(try restartedStore.completedSessions().first?.deliveryState, .pending)
+    }
+
+    func testConstructingSecondStoreDoesNotRequeueAnInFlightDelivery() throws {
+        let container = try SwiftDataStore.makeInMemoryContainer()
+        let firstStore = try SwiftDataStore(container: container)
+        let activity = try firstStore.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
+        let inFlight = makeSession(activity: activity)
+        try firstStore.saveCompleted(inFlight)
+        try firstStore.updateDeliveryState(sessionID: inFlight.id, to: .delivering)
+
+        let secondStore = try SwiftDataStore(container: container)
+
+        XCTAssertEqual(try secondStore.completedSessions().first?.deliveryState, .delivering)
+        XCTAssertTrue(try secondStore.pendingDeliverySessions().isEmpty)
     }
 
     func testSavingActiveSnapshotReplacesPriorSnapshotAndPreservesPausedDuration() throws {
