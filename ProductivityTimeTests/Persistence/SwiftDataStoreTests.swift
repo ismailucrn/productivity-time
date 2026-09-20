@@ -4,10 +4,12 @@ import XCTest
 
 @MainActor
 final class SwiftDataStoreTests: XCTestCase {
+    private var container: ModelContainer!
     private var store: SwiftDataStore!
 
     override func setUpWithError() throws {
-        store = try SwiftDataStore(container: SwiftDataStore.makeInMemoryContainer())
+        container = try SwiftDataStore.makeInMemoryContainer()
+        store = try SwiftDataStore(container: container)
     }
 
     func testCreatingCaseInsensitiveDuplicateActivityIsRejected() throws {
@@ -18,6 +20,11 @@ final class SwiftDataStoreTests: XCTestCase {
         ) { error in
             XCTAssertEqual(error as? SessionRepositoryError, .activityNameConflict)
         }
+    }
+
+    func testStableActivityNormalizationKeepsTurkishDotlessISeparateFromLatinI() {
+        XCTAssertEqual(ActivityName.stableCaseInsensitiveKey("I"), "i")
+        XCTAssertEqual(ActivityName.stableCaseInsensitiveKey("ı"), "ı")
     }
 
     func testRenamingToCaseInsensitiveDuplicateIsRejected() throws {
@@ -43,6 +50,14 @@ final class SwiftDataStoreTests: XCTestCase {
         let session = makeSession(activity: activity, title: "Reading")
         try store.saveCompleted(session)
         _ = try store.renameActivity(activity.id, to: ActivityName("Research"))
+
+        XCTAssertEqual(try store.completedSessions().first?.titleSnapshot, "Reading")
+    }
+
+    func testCompletedSessionRetainsTitleAfterActivityIsDeleted() throws {
+        let activity = try store.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
+        try store.saveCompleted(makeSession(activity: activity, title: "Reading"))
+        try store.deleteActivity(activity.id)
 
         XCTAssertEqual(try store.completedSessions().first?.titleSnapshot, "Reading")
     }
@@ -97,15 +112,42 @@ final class SwiftDataStoreTests: XCTestCase {
         XCTAssertEqual(Set(try restartedStore.pendingDeliverySessions().map(\.id)), [pending.id, failed.id])
     }
 
+    func testReplacementStoreRequeuesInterruptedDeliveriesAsPending() throws {
+        let container = try SwiftDataStore.makeInMemoryContainer()
+        let firstStore = try SwiftDataStore(container: container)
+        let activity = try firstStore.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
+        let interrupted = makeSession(activity: activity)
+        try firstStore.saveCompleted(interrupted)
+        try firstStore.updateDeliveryState(sessionID: interrupted.id, to: .delivering)
+
+        let restartedStore = try SwiftDataStore(container: container)
+
+        XCTAssertEqual(try restartedStore.pendingDeliverySessions().map(\.id), [interrupted.id])
+        XCTAssertEqual(try restartedStore.completedSessions().first?.deliveryState, .pending)
+    }
+
     func testSavingActiveSnapshotReplacesPriorSnapshotAndPreservesPausedDuration() throws {
         let activity = try store.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
         let first = makeSnapshot(activity: activity, duration: .seconds(10))
-        let paused = makeSnapshot(activity: activity, duration: .seconds(25))
+        let paused = ActiveSessionSnapshot(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
+            activityID: activity.id,
+            titleSnapshot: "Reading snapshot",
+            mode: .timer,
+            configuredDuration: .seconds(60),
+            duration: .seconds(25),
+            state: .paused
+        )
         try store.saveActive(first)
         try store.saveActive(paused)
+        let replacementStore = try SwiftDataStore(container: container)
 
-        let restored = try XCTUnwrap(store.loadActive())
+        let restored = try XCTUnwrap(replacementStore.loadActive())
         XCTAssertEqual(restored.id, paused.id)
+        XCTAssertEqual(restored.activityID, paused.activityID)
+        XCTAssertEqual(restored.titleSnapshot, "Reading snapshot")
+        XCTAssertEqual(restored.mode, .timer)
+        XCTAssertEqual(restored.configuredDuration, .seconds(60))
         XCTAssertEqual(restored.duration, .seconds(25))
         XCTAssertEqual(restored.state, .paused)
     }

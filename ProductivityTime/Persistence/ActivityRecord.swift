@@ -10,7 +10,7 @@ final class ActivityRecord {
 
     init(id: UUID, name: String, createdAt: Date) {
         self.id = id
-        self.normalizedName = name.folding(options: [.caseInsensitive], locale: .current)
+        self.normalizedName = ActivityName.stableCaseInsensitiveKey(name)
         self.name = name
         self.createdAt = createdAt
     }

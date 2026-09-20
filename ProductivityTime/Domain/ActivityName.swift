@@ -8,6 +8,10 @@ struct ActivityName: Equatable, Hashable, Sendable {
 
     let value: String
 
+    static func stableCaseInsensitiveKey(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+    }
+
     init(_ rawValue: String) throws {
         let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
 

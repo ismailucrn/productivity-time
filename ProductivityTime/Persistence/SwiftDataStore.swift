@@ -7,6 +7,7 @@ final class SwiftDataStore: SessionRepository {
 
     init(container: ModelContainer) throws {
         context = ModelContext(container)
+        try recoverInterruptedDeliveries()
     }
 
     static func makeInMemoryContainer() throws -> ModelContainer {
@@ -19,7 +20,7 @@ final class SwiftDataStore: SessionRepository {
     }
 
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity {
-        let normalizedName = name.value.folding(options: [.caseInsensitive], locale: .current)
+        let normalizedName = ActivityName.stableCaseInsensitiveKey(name.value)
         var descriptor = FetchDescriptor<ActivityRecord>(predicate: #Predicate { $0.normalizedName == normalizedName })
         descriptor.fetchLimit = 1
 
@@ -35,7 +36,7 @@ final class SwiftDataStore: SessionRepository {
 
     func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity {
         let record = try fetchActivity(id)
-        let normalizedName = name.value.folding(options: [.caseInsensitive], locale: .current)
+        let normalizedName = ActivityName.stableCaseInsensitiveKey(name.value)
         var duplicateDescriptor = FetchDescriptor<ActivityRecord>(predicate: #Predicate { $0.normalizedName == normalizedName })
         duplicateDescriptor.fetchLimit = 1
         if let duplicate = try context.fetch(duplicateDescriptor).first, duplicate.id != id {
@@ -119,6 +120,16 @@ final class SwiftDataStore: SessionRepository {
             throw SessionRepositoryError.activityNotFound
         }
         return record
+    }
+
+    private func recoverInterruptedDeliveries() throws {
+        let descriptor = FetchDescriptor<SessionRecord>(predicate: #Predicate { $0.deliveryStateRawValue == "delivering" })
+        let interruptedRecords = try context.fetch(descriptor)
+        guard !interruptedRecords.isEmpty else {
+            return
+        }
+        interruptedRecords.forEach { $0.setDeliveryState(.pending) }
+        try context.save()
     }
 
     private func isLegalDeliveryTransition(from current: DeliveryState, to next: DeliveryState) -> Bool {
