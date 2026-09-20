@@ -148,17 +148,31 @@ git commit -m "chore: define repository agent workflow"
 - Create: `.codex/agents/integrations-implementer.toml`
 - Create: `.codex/agents/quality-implementer.toml`
 - Create: `.codex/agents/security-reviewer.toml`
+- Create: `.gitignore`
+- Create locally, do not commit: `.venv/`
 
 **Interfaces:**
 - Consumes: role names and responsibilities defined by `AGENTS.md`.
 - Produces: four discoverable custom Codex roles named `macos_core_implementer`, `integrations_implementer`, `quality_implementer`, and `security_reviewer`, plus a three-agent concurrency cap.
 
-- [ ] **Step 1: Run the TOML presence check and verify it fails**
+- [ ] **Step 1: Create the ignored project-local validation environment**
 
 Run:
 
 ```bash
-python3 - <<'PY'
+/Users/ismail/.local/bin/python3.11 -m venv .venv
+test -x .venv/bin/python
+git check-ignore -q .venv
+```
+
+Expected: all commands exit successfully without installing any global package.
+
+- [ ] **Step 2: Run the TOML presence check and verify it fails**
+
+Run:
+
+```bash
+.venv/bin/python - <<'PY'
 from pathlib import Path
 
 required = [
@@ -175,7 +189,7 @@ PY
 
 Expected: `AssertionError` listing all five missing files.
 
-- [ ] **Step 2: Create the project defaults**
+- [ ] **Step 3: Create the project defaults**
 
 Create `.codex/config.toml`:
 
@@ -187,7 +201,7 @@ default_subagent_model = "gpt-5.6-terra"
 default_subagent_reasoning_effort = "high"
 ```
 
-- [ ] **Step 3: Create the macOS core implementer**
+- [ ] **Step 4: Create the macOS core implementer**
 
 Create `.codex/agents/macos-core-implementer.toml`:
 
@@ -205,7 +219,7 @@ Preserve unrelated changes. Return changed files, commands run, exact results, a
 """
 ```
 
-- [ ] **Step 4: Create the integrations implementer**
+- [ ] **Step 5: Create the integrations implementer**
 
 Create `.codex/agents/integrations-implementer.toml`:
 
@@ -223,7 +237,7 @@ Do not change timer semantics or unrelated UI files. Return changed files, comma
 """
 ```
 
-- [ ] **Step 5: Create the quality implementer**
+- [ ] **Step 6: Create the quality implementer**
 
 Create `.codex/agents/quality-implementer.toml`:
 
@@ -241,7 +255,7 @@ Return changed files, commands run, exact results, and remaining risks.
 """
 ```
 
-- [ ] **Step 6: Create the final security reviewer**
+- [ ] **Step 7: Create the final security reviewer**
 
 Create `.codex/agents/security-reviewer.toml`:
 
@@ -259,12 +273,12 @@ If no material findings remain, state that explicitly and list residual risks or
 """
 ```
 
-- [ ] **Step 7: Parse every TOML file and validate the complete role matrix**
+- [ ] **Step 8: Parse every TOML file and validate the complete role matrix**
 
 Run:
 
 ```bash
-python3 - <<'PY'
+.venv/bin/python - <<'PY'
 from pathlib import Path
 import tomllib
 
@@ -300,10 +314,10 @@ PY
 
 Expected: `agent orchestration configuration: valid`.
 
-- [ ] **Step 8: Commit the custom agents**
+- [ ] **Step 9: Commit the custom agents and environment policy**
 
 ```bash
-git add .codex/config.toml .codex/agents
+git add .gitignore .codex/config.toml .codex/agents
 git commit -m "chore: configure project subagents"
 ```
 
