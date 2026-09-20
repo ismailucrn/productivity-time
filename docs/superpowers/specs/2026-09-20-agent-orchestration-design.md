@@ -84,6 +84,10 @@ The project concurrency limit will be three spawned agents. This matches the ava
 
 The file will also require test-driven development for features and fixes, proportionate build/test verification, minimal changes, no destructive Git commands, and explicit reporting of blockers.
 
+All development dependencies, caches, generated files, and scripting environments must remain project-local. Agents must not use `sudo`, install global packages, or write to system-level paths without explicit user approval. When a tool cannot be isolated inside the repository, the agent must stop and request permission before installing it.
+
+After every important milestone, the orchestrator must create a focused Git commit and push the current feature branch to the configured GitHub remote. Force-pushes and direct pushes to a protected main branch remain prohibited unless the user explicitly authorizes them.
+
 ## Planned Files
 
 ```text

@@ -18,6 +18,8 @@
 - The final reviewer uses `gpt-5.6-sol` with `model_reasoning_effort = "high"` and `sandbox_mode = "read-only"`.
 - The primary session remains the orchestrator and assigns non-overlapping file ownership before parallel writes.
 - Completion requires repository-level verification and a clean Sol High review; material findings reopen implementation.
+- Keep dependencies, caches, generated files, and scripting environments project-local. Do not use `sudo`, global package installation, or system paths without explicit user approval.
+- After every important milestone, create a focused Git commit and push the current feature branch to the configured GitHub remote; never force-push or bypass protected-branch policy.
 - This plan must not create application source code, Xcode scaffolding, credentials, CI/CD, or deployment configuration.
 
 ## Review Focus
@@ -80,6 +82,10 @@ Create `AGENTS.md` with this content:
 - Preserve unrelated user changes and never use destructive Git commands without explicit approval.
 - Run focused tests while working and the complete available test/build suite before completion.
 - Do not claim completion without fresh verification evidence.
+- Keep all dependencies, caches, generated files, and scripting environments inside the repository. Use project-local locations such as `.venv`, `node_modules`, `.build`, or a repository-local DerivedData directory when those ecosystems apply.
+- Do not use `sudo`, install global packages, or write to `/usr`, `/usr/local`, `/opt/homebrew`, system Library directories, or other machine-level locations without explicit user approval.
+- If a required tool cannot be installed or cached inside the project, stop and request permission before changing the machine.
+- Keep secrets in ignored project-local environment files or the macOS credential store; commit only sanitized examples such as `.env.example`.
 
 ## Orchestration
 
@@ -95,6 +101,8 @@ Create `AGENTS.md` with this content:
 - After integration and repository-level verification, delegate a final read-only review to `security_reviewer`, which uses `gpt-5.6-sol` with high reasoning effort.
 - The final review must cover correctness, security, secrets, permissions, unsafe automation, data leakage, injection, concurrency, persistence, regressions, and missing tests.
 - Route each material finding back to the appropriate Terra implementer. Rerun verification and request a follow-up Sol review before declaring completion.
+- After every important milestone, create a focused Git commit and push the current feature branch to the configured GitHub remote.
+- Never force-push. Do not push directly to a protected main branch unless the user explicitly authorizes it.
 
 ## Code review rules
 
