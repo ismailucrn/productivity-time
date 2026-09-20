@@ -19,6 +19,13 @@
 		B20000000000000000000006 /* TimerMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000019 /* TimerMode.swift */; };
 		B20000000000000000000007 /* TimerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000020 /* TimerState.swift */; };
 		B20000000000000000000008 /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000021 /* TimerEngine.swift */; };
+		D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000011 /* SwiftDataStoreTests.swift */; };
+		D30000000000000000000002 /* PersistenceValues.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000013 /* PersistenceValues.swift */; };
+		D30000000000000000000003 /* ActivityRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000014 /* ActivityRecord.swift */; };
+		D30000000000000000000004 /* SessionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000015 /* SessionRepository.swift */; };
+		D30000000000000000000005 /* SwiftDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000016 /* SwiftDataStore.swift */; };
+		D30000000000000000000006 /* SessionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000018 /* SessionRecord.swift */; };
+		D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000019 /* ActiveSessionRecord.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +54,13 @@
 		B20000000000000000000019 /* TimerMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMode.swift; sourceTree = "<group>"; };
 		B20000000000000000000020 /* TimerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerState.swift; sourceTree = "<group>"; };
 		B20000000000000000000021 /* TimerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerEngine.swift; sourceTree = "<group>"; };
+		D30000000000000000000011 /* SwiftDataStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataStoreTests.swift; sourceTree = "<group>"; };
+		D30000000000000000000013 /* PersistenceValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceValues.swift; sourceTree = "<group>"; };
+		D30000000000000000000014 /* ActivityRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityRecord.swift; sourceTree = "<group>"; };
+		D30000000000000000000015 /* SessionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRepository.swift; sourceTree = "<group>"; };
+		D30000000000000000000016 /* SwiftDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataStore.swift; sourceTree = "<group>"; };
+		D30000000000000000000018 /* SessionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecord.swift; sourceTree = "<group>"; };
+		D30000000000000000000019 /* ActiveSessionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSessionRecord.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +83,7 @@
 			children = (
 				A10000000000000000000065 /* App */,
 				B20000000000000000000014 /* Domain */,
+				D30000000000000000000017 /* Persistence */,
 				A10000000000000000000066 /* Resources */,
 			);
 			path = ProductivityTime;
@@ -76,7 +91,7 @@
 		};
 		A10000000000000000000063 /* ProductivityTimeTests */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000014 /* AppLaunchTests.swift */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */,);
+			children = (A10000000000000000000014 /* AppLaunchTests.swift */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */, D30000000000000000000012 /* Persistence */,);
 			path = ProductivityTimeTests;
 			sourceTree = "<group>";
 		};
@@ -106,7 +121,7 @@
 		};
 		B20000000000000000000014 /* Domain */ = {
 			isa = PBXGroup;
-			children = (B20000000000000000000013 /* ActivityName.swift */, B20000000000000000000018 /* MonotonicClock.swift */, B20000000000000000000019 /* TimerMode.swift */, B20000000000000000000020 /* TimerState.swift */, B20000000000000000000021 /* TimerEngine.swift */,);
+			children = (B20000000000000000000013 /* ActivityName.swift */, B20000000000000000000018 /* MonotonicClock.swift */, B20000000000000000000019 /* TimerMode.swift */, B20000000000000000000020 /* TimerState.swift */, B20000000000000000000021 /* TimerEngine.swift */, D30000000000000000000013 /* PersistenceValues.swift */,);
 			path = Domain;
 			sourceTree = "<group>";
 		};
@@ -114,6 +129,18 @@
 			isa = PBXGroup;
 			children = (B20000000000000000000016 /* TestClock.swift */,);
 			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		D30000000000000000000012 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (D30000000000000000000011 /* SwiftDataStoreTests.swift */,);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		D30000000000000000000017 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (D30000000000000000000014 /* ActivityRecord.swift */, D30000000000000000000018 /* SessionRecord.swift */, D30000000000000000000019 /* ActiveSessionRecord.swift */, D30000000000000000000015 /* SessionRepository.swift */, D30000000000000000000016 /* SwiftDataStore.swift */,);
+			path = Persistence;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -166,8 +193,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */, D30000000000000000000002 /* PersistenceValues.swift in Sources */, D30000000000000000000003 /* ActivityRecord.swift in Sources */, D30000000000000000000006 /* SessionRecord.swift in Sources */, D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */, D30000000000000000000004 /* SessionRepository.swift in Sources */, D30000000000000000000005 /* SwiftDataStore.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */, D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
