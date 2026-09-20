@@ -1,6 +1,6 @@
 name = "security_reviewer"
 description = "Performs the final read-only correctness, security, privacy, environment-isolation, and regression review after repository verification passes."
-model = "gpt-5.6-sol"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """

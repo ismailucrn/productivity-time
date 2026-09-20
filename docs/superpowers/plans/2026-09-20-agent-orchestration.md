@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a repository-scoped Codex orchestration configuration with Terra High implementation roles and a read-only Sol High final reviewer.
+> **Amendment:** The MVP decision recorded on 2026-09-20 supersedes the original reviewer routing in this completed setup plan. Sol High is now a read-only orchestration advisor; the final read-only security reviewer is Terra High. Notion is post-MVP.
 
-**Architecture:** The repository root `AGENTS.md` is the orchestration contract read by every Codex session. `.codex/config.toml` sets multi-agent defaults and concurrency, while four narrow `.codex/agents/*.toml` files bind role instructions to explicit models, reasoning effort, and sandbox access.
+**Goal:** Add a repository-scoped Codex orchestration configuration with Terra High implementation and security-review roles plus a read-only Sol High orchestration advisor.
+
+**Architecture:** The repository root `AGENTS.md` is the orchestration contract read by every Codex session. `.codex/config.toml` sets multi-agent defaults and concurrency, while five narrow `.codex/agents/*.toml` files bind role instructions to explicit models, reasoning effort, and sandbox access.
 
 **Tech Stack:** Markdown, TOML, Python 3 standard-library `tomllib`, Git, Codex project configuration.
 
@@ -15,16 +17,16 @@
 - Use the official project-scoped Codex layout: `AGENTS.md`, `.codex/config.toml`, and `.codex/agents/*.toml`.
 - Do not create a `.agents/` compatibility directory.
 - All implementation roles use `gpt-5.6-terra` with `model_reasoning_effort = "high"` and `sandbox_mode = "workspace-write"`.
-- The final reviewer uses `gpt-5.6-sol` with `model_reasoning_effort = "high"` and `sandbox_mode = "read-only"`.
+- The final reviewer uses `gpt-5.6-terra` with `model_reasoning_effort = "high"` and `sandbox_mode = "read-only"`; the orchestration advisor uses `gpt-5.6-sol` and is also read-only.
 - The primary session remains the orchestrator and assigns non-overlapping file ownership before parallel writes.
-- Completion requires repository-level verification and a clean Sol High review; material findings reopen implementation.
+- Completion requires repository-level verification and a clean Terra High security review; material findings reopen implementation.
 - Keep dependencies, caches, generated files, and scripting environments project-local. Do not use `sudo`, global package installation, or system paths without explicit user approval.
 - After every important milestone, create a focused Git commit and push the current feature branch to the configured GitHub remote; never force-push or bypass protected-branch policy.
 - This plan must not create application source code, Xcode scaffolding, credentials, CI/CD, or deployment configuration.
 
 ## Review Focus
 
-- **Model drift:** every implementation role must resolve to Terra High, while the final reviewer must resolve to Sol High.
+- **Model drift:** every implementation and security-review role must resolve to Terra High, while only the read-only orchestration advisor resolves to Sol High.
 - **Reviewer mutation risk:** the security reviewer must be read-only and explicitly prohibited from editing files.
 - **Incomplete role schema:** every custom-agent file must contain non-empty `name`, `description`, and `developer_instructions` fields.
 - **Write conflicts:** repository instructions must forbid parallel write tasks with overlapping file ownership.
@@ -39,7 +41,7 @@
 
 **Interfaces:**
 - Consumes: the product and orchestration requirements in `docs/superpowers/specs/2026-09-20-agent-orchestration-design.md`.
-- Produces: repository-wide instructions that define `macos_core_implementer`, `integrations_implementer`, `quality_implementer`, and `security_reviewer` responsibilities and the primary-session workflow.
+- Produces: repository-wide instructions that define `macos_core_implementer`, `integrations_implementer`, `quality_implementer`, `orchestration_advisor`, and `security_reviewer` responsibilities and the primary-session workflow.
 
 - [ ] **Step 1: Run the contract check and verify it fails**
 
@@ -69,7 +71,7 @@ Create `AGENTS.md` with this content:
 - Resetting a stopwatch records a completed session; pausing or stopping without reset does not.
 - A timer records a completed session only when the timer reaches zero.
 - Store title, mode, elapsed or configured duration, completion date, and a stable session identifier.
-- Deliver every completed session to both Apple Notes and Notion as title, duration, and date.
+- Deliver MVP sessions to Apple Notes as title, duration, and date; implement Notion after the MVP.
 - Make external writes idempotent so retries cannot silently create duplicate session records.
 - Store credentials and tokens through an appropriate macOS credential mechanism. Never commit secrets.
 
@@ -92,15 +94,15 @@ Create `AGENTS.md` with this content:
 - The primary Codex session is the orchestrator. It owns clarification, architecture, decomposition, task assignment, integration, verification, and final reporting.
 - For implementation, delegate bounded work to the project custom agents under `.codex/agents/`.
 - Use `macos_core_implementer` for the application shell, timer/stopwatch domain, persistence, and macOS lifecycle.
-- Use `integrations_implementer` for Apple Notes and Notion adapters, permissions, credentials, retries, and idempotency.
+- Use `integrations_implementer` for Apple Notes in the MVP and for Notion only when separately assigned after the MVP.
 - Use `quality_implementer` for test infrastructure, regression tests, accessibility validation, build verification, and targeted fixes assigned by the orchestrator.
 - All implementation agents use `gpt-5.6-terra` with high reasoning effort.
 - Give every delegated write task explicit file ownership and acceptance criteria.
 - Run independent read-heavy tasks in parallel when useful. Run write-heavy tasks in parallel only when file ownership does not overlap; otherwise run them sequentially.
 - Require every implementer to report changed files, verification commands and results, and remaining risks.
-- After integration and repository-level verification, delegate a final read-only review to `security_reviewer`, which uses `gpt-5.6-sol` with high reasoning effort.
+- After integration and repository-level verification, delegate a final read-only review to `security_reviewer`, which uses `gpt-5.6-terra` with high reasoning effort.
 - The final review must cover correctness, security, secrets, permissions, unsafe automation, data leakage, injection, concurrency, persistence, regressions, and missing tests.
-- Route each material finding back to the appropriate Terra implementer. Rerun verification and request a follow-up Sol review before declaring completion.
+- Route each material finding back to the appropriate Terra implementer. Rerun verification and request a follow-up Terra security review before declaring completion.
 - After every important milestone, create a focused Git commit and push the current feature branch to the configured GitHub remote.
 - Never force-push. Do not push directly to a protected main branch unless the user explicitly authorizes it.
 
@@ -118,7 +120,7 @@ Run:
 
 ```bash
 test -f AGENTS.md
-rg -n 'gpt-5\.6-terra|gpt-5\.6-sol|Resetting a stopwatch|timer reaches zero|file ownership does not overlap|follow-up Sol review' AGENTS.md
+rg -n 'gpt-5\.6-terra|gpt-5\.6-sol|Resetting a stopwatch|timer reaches zero|file ownership does not overlap|follow-up Terra security review' AGENTS.md
 ```
 
 Expected: all six required concepts appear and both commands exit successfully.
@@ -147,13 +149,14 @@ git commit -m "chore: define repository agent workflow"
 - Create: `.codex/agents/macos-core-implementer.toml`
 - Create: `.codex/agents/integrations-implementer.toml`
 - Create: `.codex/agents/quality-implementer.toml`
+- Create: `.codex/agents/orchestration-advisor.toml`
 - Create: `.codex/agents/security-reviewer.toml`
 - Create: `.gitignore`
 - Create locally, do not commit: `.venv/`
 
 **Interfaces:**
 - Consumes: role names and responsibilities defined by `AGENTS.md`.
-- Produces: four discoverable custom Codex roles named `macos_core_implementer`, `integrations_implementer`, `quality_implementer`, and `security_reviewer`, plus a three-agent concurrency cap.
+- Produces: five discoverable custom Codex roles named `macos_core_implementer`, `integrations_implementer`, `quality_implementer`, `orchestration_advisor`, and `security_reviewer`, plus a three-agent concurrency cap.
 
 - [ ] **Step 1: Create the ignored project-local validation environment**
 
@@ -180,6 +183,7 @@ required = [
     Path('.codex/agents/macos-core-implementer.toml'),
     Path('.codex/agents/integrations-implementer.toml'),
     Path('.codex/agents/quality-implementer.toml'),
+    Path('.codex/agents/orchestration-advisor.toml'),
     Path('.codex/agents/security-reviewer.toml'),
 ]
 missing = [str(path) for path in required if not path.is_file()]
@@ -187,7 +191,7 @@ assert not missing, f"missing: {missing}"
 PY
 ```
 
-Expected: `AssertionError` listing all five missing files.
+Expected: `AssertionError` listing all six missing files.
 
 - [ ] **Step 3: Create the project defaults**
 
@@ -225,7 +229,7 @@ Create `.codex/agents/integrations-implementer.toml`:
 
 ```toml
 name = "integrations_implementer"
-description = "Implements Apple Notes and Notion adapters, permissions, credentials, idempotency, retries, and integration tests."
+description = "Implements the MVP Apple Notes adapter and later assigned Notion work, including permissions, credentials, idempotency, retries, and integration tests."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
@@ -255,14 +259,18 @@ Return changed files, commands run, exact results, and remaining risks.
 """
 ```
 
-- [ ] **Step 7: Create the final security reviewer**
+- [ ] **Step 7: Create the orchestration advisor**
+
+Create `.codex/agents/orchestration-advisor.toml` with a read-only `gpt-5.6-sol`, high-effort role that may review architecture, task decomposition, sequencing, and integration decisions but may never implement product code or perform the final security review.
+
+- [ ] **Step 8: Create the final security reviewer**
 
 Create `.codex/agents/security-reviewer.toml`:
 
 ```toml
 name = "security_reviewer"
 description = "Performs the final read-only correctness, security, privacy, and regression review after repository verification passes."
-model = "gpt-5.6-sol"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
@@ -273,7 +281,7 @@ If no material findings remain, state that explicitly and list residual risks or
 """
 ```
 
-- [ ] **Step 8: Parse every TOML file and validate the complete role matrix**
+- [ ] **Step 9: Parse every TOML file and validate the complete role matrix**
 
 Run:
 
@@ -293,7 +301,8 @@ expected = {
     'macos-core-implementer.toml': ('macos_core_implementer', 'gpt-5.6-terra', 'high', 'workspace-write'),
     'integrations-implementer.toml': ('integrations_implementer', 'gpt-5.6-terra', 'high', 'workspace-write'),
     'quality-implementer.toml': ('quality_implementer', 'gpt-5.6-terra', 'high', 'workspace-write'),
-    'security-reviewer.toml': ('security_reviewer', 'gpt-5.6-sol', 'high', 'read-only'),
+    'orchestration-advisor.toml': ('orchestration_advisor', 'gpt-5.6-sol', 'high', 'read-only'),
+    'security-reviewer.toml': ('security_reviewer', 'gpt-5.6-terra', 'high', 'read-only'),
 }
 
 for filename, values in expected.items():
@@ -314,7 +323,7 @@ PY
 
 Expected: `agent orchestration configuration: valid`.
 
-- [ ] **Step 9: Commit the custom agents and environment policy**
+- [ ] **Step 10: Commit the custom agents and environment policy**
 
 ```bash
 git add .gitignore .codex/config.toml .codex/agents
@@ -341,7 +350,7 @@ Run:
 ```bash
 test -f AGENTS.md
 test -f .codex/config.toml
-test "$(find .codex/agents -type f -name '*.toml' | wc -l | tr -d ' ')" = "4"
+test "$(find .codex/agents -type f -name '*.toml' | wc -l | tr -d ' ')" = "5"
 test ! -e .agents
 ```
 
@@ -353,7 +362,7 @@ Run:
 
 ```bash
 rg -n 'gpt-5\.6-terra|gpt-5\.6-sol|sandbox_mode = "read-only"' .codex
-rg -n 'file ownership does not overlap|follow-up Sol review' AGENTS.md
+rg -n 'file ownership does not overlap|follow-up Terra security review' AGENTS.md
 .venv/bin/python - <<'PY'
 from pathlib import Path
 import tomllib

@@ -40,7 +40,14 @@ The primary Codex session remains the orchestrator. It owns requirement clarific
 - Model: `gpt-5.6-terra`
 - Reasoning effort: `high`
 - Sandbox: `workspace-write`
-- Scope: Apple Notes and Notion adapters, credential handling, permission flows, retries, idempotency, and integration-focused tests.
+- Scope: the MVP Apple Notes adapter and later explicitly assigned Notion work, credential handling, permission flows, retries, idempotency, and integration-focused tests.
+
+### orchestration advisor
+
+- Model: `gpt-5.6-sol`
+- Reasoning effort: `high`
+- Sandbox: `read-only`
+- Scope: architecture, task decomposition, sequencing, and integration advice only. This role never implements product code or performs the final security review.
 
 ### quality implementer
 
@@ -51,7 +58,7 @@ The primary Codex session remains the orchestrator. It owns requirement clarific
 
 ### security reviewer
 
-- Model: `gpt-5.6-sol`
+- Model: `gpt-5.6-terra`
 - Reasoning effort: `high`
 - Sandbox: `read-only`
 - Scope: final independent review for secrets exposure, unsafe automation, permission misuse, data leakage, injection risks, concurrency defects, persistence corruption, regressions, and missing tests.
@@ -78,7 +85,7 @@ The project concurrency limit will be three spawned agents. This matches the ava
 - Resetting a stopwatch records a session; pausing or stopping alone does not.
 - A timer records a session only when it reaches zero.
 - Each completed session records title, mode, duration, and date.
-- Completed sessions are delivered to both Apple Notes and Notion.
+- MVP sessions are delivered to Apple Notes. Notion delivery remains a post-MVP product requirement.
 - Secrets must never be committed and must be stored through an appropriate macOS credential mechanism.
 - External writes must be idempotent or carry stable identifiers so retries do not silently duplicate sessions.
 
@@ -98,6 +105,7 @@ AGENTS.md
     macos-core-implementer.toml
     integrations-implementer.toml
     quality-implementer.toml
+    orchestration-advisor.toml
     security-reviewer.toml
 docs/
   superpowers/
@@ -111,7 +119,7 @@ Validation for this orchestration layer will include:
 
 - TOML parsing for every `.toml` file.
 - Presence checks for all required custom-agent fields: `name`, `description`, and `developer_instructions`.
-- Exact checks that implementers use `gpt-5.6-terra` with `high` effort and the reviewer uses `gpt-5.6-sol` with `high` effort and `read-only` sandboxing.
+- Exact checks that implementers and the reviewer use `gpt-5.6-terra` with `high` effort, while the read-only orchestration advisor uses `gpt-5.6-sol` with `high` effort.
 - Inspection that `AGENTS.md` defines orchestration, verification, and final-review gates without granting agents broader authority than the user's task.
 - A clean Git diff review before handoff.
 
