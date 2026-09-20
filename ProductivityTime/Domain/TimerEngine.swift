@@ -66,6 +66,9 @@ final class TimerEngine {
             stopwatchAccumulated = displayDuration
             stopwatchSegmentStartedAt = nil
         case .timer:
+            if let completion = completeTimerIfDue() {
+                return completion
+            }
             timerRemaining = displayDuration
             timerDeadline = nil
             timerCompletionDate = nil
@@ -103,6 +106,9 @@ final class TimerEngine {
             }
             return .completion(TimerCompletion(duration: elapsed, completedAt: clock.date))
         case let .timer(configured):
+            if let completion = completeTimerIfDue() {
+                return completion
+            }
             guard state != .idle else {
                 return .none
             }
@@ -115,16 +121,31 @@ final class TimerEngine {
     }
 
     func cancel() -> TimerTransition {
-        reset()
+        switch mode {
+        case .stopwatch:
+            guard state != .idle else {
+                return .none
+            }
+            stopwatchAccumulated = .zero
+            stopwatchSegmentStartedAt = nil
+            state = .idle
+            return .stateChanged(.idle)
+        case .timer:
+            return reset()
+        }
     }
 
     func completeIfDue() -> TimerTransition {
+        completeTimerIfDue() ?? .none
+    }
+
+    private func completeTimerIfDue() -> TimerTransition? {
         guard case let .timer(configured) = mode,
               state == .running,
               displayDuration <= .zero,
               let timerCompletionDate
         else {
-            return .none
+            return nil
         }
 
         timerRemaining = .zero

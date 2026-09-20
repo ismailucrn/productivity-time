@@ -17,7 +17,7 @@ final class TimerEngineTests: XCTestCase {
     func testRunningStopwatchResetAfterElapsedTimeEmitsOneCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .stopwatch, clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(25))
 
         let transition = engine.reset()
@@ -29,9 +29,9 @@ final class TimerEngineTests: XCTestCase {
     func testPausedStopwatchResetAfterElapsedTimeEmitsOneCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .stopwatch, clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(25))
-        engine.pause()
+        _ = engine.pause()
 
         let transition = engine.reset()
 
@@ -47,7 +47,7 @@ final class TimerEngineTests: XCTestCase {
 
     func testZeroDurationStopwatchResetDoesNotEmitCompletion() {
         let engine = TimerEngine(mode: .stopwatch, clock: makeClock())
-        engine.start()
+        _ = engine.start()
 
         XCTAssertEqual(engine.reset(), .none)
     }
@@ -55,12 +55,35 @@ final class TimerEngineTests: XCTestCase {
     func testSecondStopwatchResetDoesNotEmitAnotherCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .stopwatch, clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(25))
 
         _ = engine.reset()
 
         XCTAssertEqual(engine.reset(), .none)
+    }
+
+    func testRunningStopwatchCancelClearsElapsedTimeWithoutCompletion() {
+        let clock = makeClock()
+        let engine = TimerEngine(mode: .stopwatch, clock: clock)
+        _ = engine.start()
+        clock.advance(by: .seconds(25))
+
+        XCTAssertEqual(engine.cancel(), .stateChanged(.idle))
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(engine.displayDuration, .zero)
+    }
+
+    func testPausedStopwatchCancelClearsElapsedTimeWithoutCompletion() {
+        let clock = makeClock()
+        let engine = TimerEngine(mode: .stopwatch, clock: clock)
+        _ = engine.start()
+        clock.advance(by: .seconds(25))
+        _ = engine.pause()
+
+        XCTAssertEqual(engine.cancel(), .stateChanged(.idle))
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(engine.displayDuration, .zero)
     }
 
     func testTimerStartShowsConfiguredRemainingDuration() {
@@ -73,7 +96,7 @@ final class TimerEngineTests: XCTestCase {
     func testTimerPausePreservesRemainingDurationWithoutCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(60)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(10))
 
         XCTAssertEqual(engine.pause(), .stateChanged(.paused))
@@ -85,9 +108,9 @@ final class TimerEngineTests: XCTestCase {
     func testTimerResumeUsesRemainingDurationAsNewMonotonicDeadline() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(60)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(10))
-        engine.pause()
+        _ = engine.pause()
         clock.advance(by: .seconds(20))
 
         XCTAssertEqual(engine.resume(), .stateChanged(.running))
@@ -101,7 +124,7 @@ final class TimerEngineTests: XCTestCase {
     func testTimerResetDoesNotEmitCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(60)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(10))
 
         XCTAssertEqual(engine.reset(), .stateChanged(.idle))
@@ -111,16 +134,46 @@ final class TimerEngineTests: XCTestCase {
     func testTimerCancelDoesNotEmitCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(60)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(10))
 
         XCTAssertEqual(engine.cancel(), .stateChanged(.idle))
     }
 
+    func testTimerPauseAfterDeadlineEmitsNaturalCompletionAndSuppressesLaterCallback() {
+        let clock = makeClock()
+        let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
+        _ = engine.start()
+        clock.advance(by: .seconds(31))
+
+        XCTAssertEqual(engine.pause(), .completion(TimerCompletion(duration: .seconds(30), completedAt: date(after: 30))))
+        XCTAssertEqual(engine.completeIfDue(), .none)
+    }
+
+    func testTimerResetAfterDeadlineEmitsNaturalCompletionAndSuppressesLaterCallback() {
+        let clock = makeClock()
+        let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
+        _ = engine.start()
+        clock.advance(by: .seconds(31))
+
+        XCTAssertEqual(engine.reset(), .completion(TimerCompletion(duration: .seconds(30), completedAt: date(after: 30))))
+        XCTAssertEqual(engine.completeIfDue(), .none)
+    }
+
+    func testTimerCancelAfterDeadlineEmitsNaturalCompletionAndSuppressesLaterCallback() {
+        let clock = makeClock()
+        let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
+        _ = engine.start()
+        clock.advance(by: .seconds(31))
+
+        XCTAssertEqual(engine.cancel(), .completion(TimerCompletion(duration: .seconds(30), completedAt: date(after: 30))))
+        XCTAssertEqual(engine.completeIfDue(), .none)
+    }
+
     func testTimerNaturalZeroEmitsConfiguredDurationWithIntendedDate() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(30))
 
         XCTAssertEqual(engine.completeIfDue(), .completion(TimerCompletion(duration: .seconds(30), completedAt: date(after: 30))))
@@ -130,7 +183,7 @@ final class TimerEngineTests: XCTestCase {
     func testRepeatedTimerDeadlineCallbackDoesNotEmitAnotherCompletion() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(30))
 
         _ = engine.completeIfDue()
@@ -141,7 +194,7 @@ final class TimerEngineTests: XCTestCase {
     func testTimerAdvancedPastDeadlineEmitsOneCompletionAtIntendedDate() {
         let clock = makeClock()
         let engine = TimerEngine(mode: .timer(configured: .seconds(30)), clock: clock)
-        engine.start()
+        _ = engine.start()
         clock.advance(by: .seconds(45))
 
         XCTAssertEqual(engine.completeIfDue(), .completion(TimerCompletion(duration: .seconds(30), completedAt: date(after: 30))))
