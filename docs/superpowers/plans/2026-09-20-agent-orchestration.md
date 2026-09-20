@@ -354,7 +354,7 @@ Run:
 ```bash
 rg -n 'gpt-5\.6-terra|gpt-5\.6-sol|sandbox_mode = "read-only"' .codex
 rg -n 'file ownership does not overlap|follow-up Sol review' AGENTS.md
-python3 - <<'PY'
+.venv/bin/python - <<'PY'
 from pathlib import Path
 import tomllib
 
