@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 @testable import ProductivityTime
@@ -273,6 +274,61 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
 
         observer.update(state: WindowVisibilityState(appIsActive: true, windowIsKey: false, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: false, isObscuredBySheet: true))
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
+    }
+
+    func testBeginSheetNotificationImmediatelyStopsStopwatchRefreshAndEndSheetRestoresIt() async throws {
+        var state = WindowVisibilityState.visible
+        let observer = WindowVisibilityObserver { _ in state }
+        let repository = InMemorySessionRepository()
+        let scheduler = TestRefreshScheduler()
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: scheduler)
+        let window = NSWindow()
+        observer.bind(model: model)
+        observer.attach(to: window)
+        defer { observer.stop() }
+        let activity = try model.createActivity(named: "Writing")
+        try model.startStopwatch(for: activity.id)
+
+        state = WindowVisibilityState(appIsActive: true, windowIsKey: true, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: false, isObscuredBySheet: true)
+        NotificationCenter.default.post(name: NSWindow.willBeginSheetNotification, object: window)
+        await Task.yield()
+
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertTrue(scheduler.activeDeadlineDurations.isEmpty)
+
+        state = .visible
+        NotificationCenter.default.post(name: NSWindow.didEndSheetNotification, object: window)
+        await Task.yield()
+
+        XCTAssertEqual(scheduler.activeRepeatingIntervals, [.seconds(1)])
+    }
+
+    func testEndSheetNotificationKeepsOnlyTimerDeadlineWhenAppRemainsInactive() async throws {
+        var state = WindowVisibilityState.visible
+        let observer = WindowVisibilityObserver { _ in state }
+        let repository = InMemorySessionRepository()
+        let scheduler = TestRefreshScheduler()
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: scheduler)
+        let window = NSWindow()
+        observer.bind(model: model)
+        observer.attach(to: window)
+        defer { observer.stop() }
+        let activity = try model.createActivity(named: "Writing")
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+
+        state = WindowVisibilityState(appIsActive: true, windowIsKey: true, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: false, isObscuredBySheet: true)
+        NotificationCenter.default.post(name: NSWindow.willBeginSheetNotification, object: window)
+        await Task.yield()
+
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
+
+        state = .inactive
+        NotificationCenter.default.post(name: NSWindow.didEndSheetNotification, object: window)
+        await Task.yield()
+
         XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
         XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
     }

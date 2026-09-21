@@ -106,6 +106,18 @@ struct WindowVisibilityState: Equatable {
     static let inactive = WindowVisibilityState(appIsActive: false, windowIsKey: true, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: false, isObscuredBySheet: false)
     static let occluded = WindowVisibilityState(appIsActive: true, windowIsKey: true, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: true, isObscuredBySheet: false)
     static let hidden = WindowVisibilityState(appIsActive: false, windowIsKey: false, windowIsVisible: false, windowIsMiniaturized: false, windowIsOccluded: true, isObscuredBySheet: false)
+
+    static func fromSystem(window: NSWindow?) -> WindowVisibilityState {
+        guard let window else { return .hidden }
+        return WindowVisibilityState(
+            appIsActive: NSApp.isActive,
+            windowIsKey: window.isKeyWindow,
+            windowIsVisible: window.isVisible,
+            windowIsMiniaturized: window.isMiniaturized,
+            windowIsOccluded: !window.occlusionState.contains(.visible),
+            isObscuredBySheet: window.attachedSheet != nil
+        )
+    }
 }
 
 @MainActor
@@ -113,6 +125,16 @@ final class WindowVisibilityObserver: ObservableObject {
     private weak var model: AppModel?
     private weak var window: NSWindow?
     private var notificationTokens: [NSObjectProtocol] = []
+    private let stateProvider: @MainActor (NSWindow?) -> WindowVisibilityState
+
+    init(_ stateProvider: @escaping @MainActor (NSWindow?) -> WindowVisibilityState = WindowVisibilityState.fromSystem) {
+        self.stateProvider = stateProvider
+    }
+
+    isolated deinit {
+        let center = NotificationCenter.default
+        notificationTokens.forEach(center.removeObserver)
+    }
 
     func bind(model: AppModel) {
         self.model = model
@@ -129,18 +151,26 @@ final class WindowVisibilityObserver: ObservableObject {
         }
 
         let center = NotificationCenter.default
-        let names: [Notification.Name] = [
+        let appNames: [Notification.Name] = [
             NSApplication.didBecomeActiveNotification,
-            NSApplication.didResignActiveNotification,
+            NSApplication.didResignActiveNotification
+        ]
+        let windowNames: [Notification.Name] = [
             NSWindow.didBecomeKeyNotification,
             NSWindow.didResignKeyNotification,
             NSWindow.didMiniaturizeNotification,
             NSWindow.didDeminiaturizeNotification,
             NSWindow.didChangeOcclusionStateNotification,
+            NSWindow.willBeginSheetNotification,
             NSWindow.didEndSheetNotification
         ]
-        notificationTokens = names.map { name in
+        notificationTokens = appNames.map { name in
             center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.updateFromSystemState() }
+            }
+        }
+        notificationTokens += windowNames.map { name in
+            center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.updateFromSystemState() }
             }
         }
@@ -158,18 +188,7 @@ final class WindowVisibilityObserver: ObservableObject {
     }
 
     private func updateFromSystemState() {
-        guard let window else {
-            update(state: .hidden)
-            return
-        }
-        update(state: WindowVisibilityState(
-            appIsActive: NSApp.isActive,
-            windowIsKey: window.isKeyWindow,
-            windowIsVisible: window.isVisible,
-            windowIsMiniaturized: window.isMiniaturized,
-            windowIsOccluded: !window.occlusionState.contains(.visible),
-            isObscuredBySheet: window.attachedSheet != nil
-        ))
+        update(state: stateProvider(window))
     }
 
     private func removeNotifications() {
