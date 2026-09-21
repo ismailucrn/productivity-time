@@ -5,6 +5,7 @@ import Foundation
     private let notesTarget: @Sendable () -> NotesTarget; private let notionConfiguration: @Sendable () -> NotionConfiguration; private let now: @Sendable () -> Date
     private var inFlight = Set<String>()
     init(repository: any SessionRepository, notes: any NotesSessionSink, notion: any NotionSessionSink, notesTarget: @escaping @Sendable () -> NotesTarget, notionConfiguration: @escaping @Sendable () -> NotionConfiguration, now: @escaping @Sendable () -> Date = Date.init) { self.repository = repository; self.notes = notes; self.notion = notion; self.notesTarget = notesTarget; self.notionConfiguration = notionConfiguration; self.now = now }
+    func deliverAllPending() async { await deliverPending(destination: .appleNotes); await deliverPending(destination: .notion) }
     func deliverPending(destination: DeliveryDestination) async { let jobs = (try? repository.pendingDeliveryRecords(for: destination, at: now())) ?? []; for job in jobs { await deliver(sessionID: job.sessionID, destination: destination) } }
     func retry(sessionID: UUID, destination: DeliveryDestination) async { do { try repository.retryDelivery(sessionID: sessionID, destination: destination); await deliver(sessionID: sessionID, destination: destination) } catch {} }
     private func deliver(sessionID: UUID, destination: DeliveryDestination) async {
