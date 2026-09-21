@@ -11,7 +11,9 @@ struct KeychainNotionCredentialStore: NotionCredentialStore, @unchecked Sendable
     }
     func writeToken(_ token: Data) throws {
         let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: Self.service, kSecAttrAccount: Self.account]
-        SecItemDelete(query as CFDictionary)
+        let updated = SecItemUpdate(query as CFDictionary, [kSecValueData: token, kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly] as CFDictionary)
+        if updated == errSecSuccess { return }
+        guard updated == errSecItemNotFound else { throw NotionCredentialError.unavailable }
         var values = query; values[kSecValueData] = token; values[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         guard SecItemAdd(values as CFDictionary, nil) == errSecSuccess else { throw NotionCredentialError.unavailable }
     }
