@@ -363,6 +363,12 @@ private final class InMemorySessionRepository: SessionRepository {
         return savedCompletedSessions
     }
     func pendingDeliverySessions() throws -> [CompletedSession] { [] }
+    func deliveryRecords(for sessionID: UUID) throws -> [DestinationDelivery] { [] }
+    func pendingDeliveryRecords(for destination: DeliveryDestination, at date: Date) throws -> [DestinationDelivery] { [] }
+    func claimDelivery(sessionID: UUID, destination: DeliveryDestination, at date: Date) throws -> DestinationDelivery? { nil }
+    func markDeliverySucceeded(sessionID: UUID, destination: DeliveryDestination) throws {}
+    func markDeliveryFailed(sessionID: UUID, destination: DeliveryDestination, errorCategory: String, retryNotBefore: Date?) throws {}
+    func retryDelivery(sessionID: UUID, destination: DeliveryDestination) throws {}
     func recoverInterruptedDeliveries() throws { recoveryCallCount += 1 }
     func updateDeliveryState(sessionID: UUID, to state: DeliveryState) throws { fatalError("unused") }
     func saveActive(_ snapshot: ActiveSessionSnapshot?) throws { activeSnapshot = snapshot }

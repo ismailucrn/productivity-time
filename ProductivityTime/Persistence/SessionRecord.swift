@@ -23,7 +23,7 @@ final class SessionRecord {
         deliveryErrorCategory = nil
     }
 
-    var session: CompletedSession {
+    func session(deliveryState: DeliveryState? = nil) -> CompletedSession {
         CompletedSession(
             id: id,
             activityID: activityID,
@@ -31,7 +31,7 @@ final class SessionRecord {
             mode: SessionMode(rawValue: modeRawValue) ?? .stopwatch,
             duration: .seconds(durationSeconds),
             completedAt: completedAt,
-            deliveryState: deliveryState
+            deliveryState: deliveryState ?? self.deliveryState
         )
     }
 
