@@ -200,9 +200,19 @@ final class AppModel: ObservableObject {
             publishRuntime()
             rescheduleTasks()
         case let .completion(completion):
-            try persist(completion: completion)
+            do {
+                try persist(completion: completion)
+            } catch {
+                clearRuntime()
+                record(error)
+                throw error
+            }
             clearRuntime()
         }
+    }
+
+    func record(_ error: Error) {
+        lastError = "The session could not be saved. \(error.localizedDescription)"
     }
 
     private func persist(completion: TimerCompletion) throws {
@@ -251,24 +261,27 @@ final class AppModel: ObservableObject {
         deadlineTask = nil
         guard let runtime, runtime.engine.state == .running else { return }
         if counterVisible {
-            counterTask = refreshScheduler.scheduleRepeating(every: .seconds(1)) { [weak self] in self?.refreshDisplay() }
+            let runtimeID = runtime.id
+            counterTask = refreshScheduler.scheduleRepeating(every: .seconds(1)) { [weak self] in self?.refreshDisplay(for: runtimeID) }
         }
         if runtime.engine.mode != .stopwatch {
-            deadlineTask = refreshScheduler.scheduleDeadline(after: runtime.engine.displayDuration) { [weak self] in self?.completeTimerAtDeadline() }
+            let runtimeID = runtime.id
+            deadlineTask = refreshScheduler.scheduleDeadline(after: runtime.engine.displayDuration) { [weak self] in self?.completeTimerAtDeadline(for: runtimeID) }
         }
     }
 
-    private func refreshDisplay() {
+    private func refreshDisplay(for runtimeID: UUID) {
+        guard runtime?.id == runtimeID else { return }
         // This is presentation-only; persistence happens only on transitions and lifecycle events.
         publishRuntime()
     }
 
-    private func completeTimerAtDeadline() {
-        guard let runtime else { return }
+    private func completeTimerAtDeadline(for runtimeID: UUID) {
+        guard let runtime, runtime.id == runtimeID else { return }
         do {
             try apply(runtime.engine.completeIfDue())
         } catch {
-            lastError = "The completed session could not be saved."
+            record(error)
         }
     }
 }

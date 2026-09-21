@@ -189,6 +189,94 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(repository.savedCompletedSessions.map(\.duration), [.seconds(60)])
         XCTAssertNil(model.activeSession)
     }
+
+    func testStopwatchResetPersistenceFailureClearsRuntimeTasksAndReportsError() throws {
+        let repository = InMemorySessionRepository()
+        repository.shouldFailSavingCompletedSession = true
+        let scheduler = TestRefreshScheduler()
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let model = AppModel(repository: repository, clock: clock, refreshScheduler: scheduler)
+        let activity = try model.createActivity(named: "Writing")
+        try model.startStopwatch(for: activity.id)
+        clock.advance(by: .seconds(25))
+
+        XCTAssertThrowsError(try model.reset())
+
+        XCTAssertNil(model.activeSession)
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertTrue(scheduler.activeDeadlineDurations.isEmpty)
+        XCTAssertNotNil(model.lastError)
+    }
+
+    func testTimerDeadlineReloadFailureClearsRuntimeTasksAndReportsError() throws {
+        let repository = InMemorySessionRepository()
+        repository.shouldFailLoadingCompletedSessions = true
+        let scheduler = TestRefreshScheduler()
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let model = AppModel(repository: repository, clock: clock, refreshScheduler: scheduler)
+        let activity = try model.createActivity(named: "Writing")
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        clock.advance(by: .seconds(60))
+
+        scheduler.fireActiveDeadlineTasks()
+
+        XCTAssertNil(model.activeSession)
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertTrue(scheduler.activeDeadlineDurations.isEmpty)
+        XCTAssertNotNil(model.lastError)
+    }
+
+    func testWindowVisibilityObserverStopsStopwatchRefreshWhenWindowBecomesInactive() throws {
+        let repository = InMemorySessionRepository()
+        let scheduler = TestRefreshScheduler()
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: scheduler)
+        let observer = WindowVisibilityObserver()
+        observer.bind(model: model)
+        observer.update(state: .visible)
+        let activity = try model.createActivity(named: "Writing")
+        try model.startStopwatch(for: activity.id)
+
+        observer.update(state: .inactive)
+
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertTrue(scheduler.activeDeadlineDurations.isEmpty)
+    }
+
+    func testWindowVisibilityObserverKeepsOnlyTimerDeadlineWhenWindowIsOccluded() throws {
+        let repository = InMemorySessionRepository()
+        let scheduler = TestRefreshScheduler()
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: scheduler)
+        let observer = WindowVisibilityObserver()
+        observer.bind(model: model)
+        observer.update(state: .visible)
+        let activity = try model.createActivity(named: "Writing")
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+
+        observer.update(state: .occluded)
+
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
+    }
+
+    func testWindowVisibilityObserverKeepsOnlyTimerDeadlineWhenMinimizedOrSheetObscured() throws {
+        let repository = InMemorySessionRepository()
+        let scheduler = TestRefreshScheduler()
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: scheduler)
+        let observer = WindowVisibilityObserver()
+        observer.bind(model: model)
+        observer.update(state: .visible)
+        let activity = try model.createActivity(named: "Writing")
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+
+        observer.update(state: WindowVisibilityState(appIsActive: true, windowIsKey: true, windowIsVisible: true, windowIsMiniaturized: true, windowIsOccluded: false, isObscuredBySheet: false))
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
+
+        observer.update(state: WindowVisibilityState(appIsActive: true, windowIsKey: false, windowIsVisible: true, windowIsMiniaturized: false, windowIsOccluded: false, isObscuredBySheet: true))
+        XCTAssertTrue(scheduler.activeRepeatingIntervals.isEmpty)
+        XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
+    }
+
 }
 
 @MainActor
@@ -198,6 +286,8 @@ private final class InMemorySessionRepository: SessionRepository {
     private var activeSnapshot: ActiveSessionSnapshot?
     var savedActiveSnapshot: ActiveSessionSnapshot? { activeSnapshot }
     private(set) var recoveryCallCount = 0
+    var shouldFailSavingCompletedSession = false
+    var shouldFailLoadingCompletedSessions = false
 
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity {
         let activity = Activity(id: UUID(), name: name, createdAt: createdAt)
@@ -208,14 +298,22 @@ private final class InMemorySessionRepository: SessionRepository {
     func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity { fatalError("unused") }
     func deleteActivity(_ id: UUID) throws { fatalError("unused") }
     func activities() throws -> [Activity] { storedActivities }
-    func saveCompleted(_ session: CompletedSession) throws { savedCompletedSessions.append(session) }
-    func completedSessions() throws -> [CompletedSession] { savedCompletedSessions }
+    func saveCompleted(_ session: CompletedSession) throws {
+        guard !shouldFailSavingCompletedSession else { throw TestRepositoryError.persistenceFailed }
+        savedCompletedSessions.append(session)
+    }
+    func completedSessions() throws -> [CompletedSession] {
+        guard !shouldFailLoadingCompletedSessions else { throw TestRepositoryError.persistenceFailed }
+        return savedCompletedSessions
+    }
     func pendingDeliverySessions() throws -> [CompletedSession] { [] }
     func recoverInterruptedDeliveries() throws { recoveryCallCount += 1 }
     func updateDeliveryState(sessionID: UUID, to state: DeliveryState) throws { fatalError("unused") }
     func saveActive(_ snapshot: ActiveSessionSnapshot?) throws { activeSnapshot = snapshot }
     func loadActive() throws -> ActiveSessionSnapshot? { activeSnapshot }
 }
+
+private enum TestRepositoryError: Error { case persistenceFailed }
 
 @MainActor
 private final class TestRefreshScheduler: RefreshScheduling {
