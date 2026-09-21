@@ -36,6 +36,18 @@
 		E40000000000000000000005 /* TimerPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000032 /* TimerPanelView.swift */; };
 		E40000000000000000000006 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000033 /* HistoryView.swift */; };
 		E40000000000000000000007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000034 /* SettingsView.swift */; };
+		I50000000000000000000001 /* NotesLineFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000011 /* NotesLineFormatterTests.swift */; };
+		I50000000000000000000028 /* IntegrationAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000027 /* IntegrationAdapterTests.swift */; };
+		I50000000000000000000002 /* NotesLineFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000013 /* NotesLineFormatter.swift */; };
+		I50000000000000000000003 /* NotesSessionSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000016 /* NotesSessionSink.swift */; };
+		I50000000000000000000004 /* AppleNotesAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000017 /* AppleNotesAdapter.swift */; };
+		I50000000000000000000005 /* DeliveryTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000018 /* DeliveryTypes.swift */; };
+		I50000000000000000000006 /* NotionConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000019 /* NotionConfiguration.swift */; };
+		I50000000000000000000007 /* NotionSessionSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000020 /* NotionSessionSink.swift */; };
+		I50000000000000000000008 /* KeychainNotionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000021 /* KeychainNotionCredentialStore.swift */; };
+		I50000000000000000000009 /* NotionAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000022 /* NotionAPIClient.swift */; };
+		I50000000000000000000010 /* DeliveryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000023 /* DeliveryCoordinator.swift */; };
+		I50000000000000000000025 /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = I50000000000000000000024 /* NotificationScheduler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +94,18 @@
 		E40000000000000000000032 /* TimerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/Timer/TimerPanelView.swift; sourceTree = SOURCE_ROOT; };
 		E40000000000000000000033 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/History/HistoryView.swift; sourceTree = SOURCE_ROOT; };
 		E40000000000000000000034 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/Settings/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000011 /* NotesLineFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTimeTests/Integrations/NotesLineFormatterTests.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000027 /* IntegrationAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTimeTests/Integrations/IntegrationAdapterTests.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000013 /* NotesLineFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notes/NotesLineFormatter.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000016 /* NotesSessionSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notes/NotesSessionSink.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000017 /* AppleNotesAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notes/AppleNotesAdapter.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000018 /* DeliveryTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Delivery/DeliveryTypes.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000019 /* NotionConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notion/NotionConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000020 /* NotionSessionSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notion/NotionSessionSink.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000021 /* KeychainNotionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notion/KeychainNotionCredentialStore.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000022 /* NotionAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notion/NotionAPIClient.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000023 /* DeliveryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Delivery/DeliveryCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		I50000000000000000000024 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Integrations/Notifications/NotificationScheduler.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,14 +131,33 @@
 				B20000000000000000000014 /* Domain */,
 				D30000000000000000000017 /* Persistence */,
 				A10000000000000000000066 /* Resources */,
+				I50000000000000000000014 /* Integrations */,
 			);
 			path = ProductivityTime;
 			sourceTree = "<group>";
 		};
+		I50000000000000000000014 /* Integrations */ = {
+			isa = PBXGroup;
+			children = (I50000000000000000000015 /* Notes */,);
+			path = Integrations;
+			sourceTree = "<group>";
+		};
+		I50000000000000000000015 /* Notes */ = {
+			isa = PBXGroup;
+			children = (I50000000000000000000013 /* NotesLineFormatter.swift */,);
+			path = Notes;
+			sourceTree = "<group>";
+		};
 		A10000000000000000000063 /* ProductivityTimeTests */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000014 /* AppLaunchTests.swift */, E40000000000000000000012 /* App */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */, D30000000000000000000012 /* Persistence */,);
+			children = (A10000000000000000000014 /* AppLaunchTests.swift */, E40000000000000000000012 /* App */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */, D30000000000000000000012 /* Persistence */, I50000000000000000000012 /* Integrations */,);
 			path = ProductivityTimeTests;
+			sourceTree = "<group>";
+		};
+		I50000000000000000000012 /* Integrations */ = {
+			isa = PBXGroup;
+			children = (I50000000000000000000011 /* NotesLineFormatterTests.swift */, I50000000000000000000027 /* IntegrationAdapterTests.swift */,);
+			path = Integrations;
 			sourceTree = "<group>";
 		};
 		E40000000000000000000012 /* App */ = {
@@ -233,8 +276,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, E40000000000000000000002 /* AppLifecycleController.swift in Sources */, E40000000000000000000004 /* ActivityListView.swift in Sources */, E40000000000000000000005 /* TimerPanelView.swift in Sources */, E40000000000000000000006 /* HistoryView.swift in Sources */, E40000000000000000000007 /* SettingsView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */, D30000000000000000000002 /* PersistenceValues.swift in Sources */, D30000000000000000000003 /* ActivityRecord.swift in Sources */, D30000000000000000000006 /* SessionRecord.swift in Sources */, D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */, F50000000000000000000002 /* DeliveryDestination.swift in Sources */, F50000000000000000000003 /* DestinationDeliveryRecord.swift in Sources */, D30000000000000000000004 /* SessionRepository.swift in Sources */, D30000000000000000000005 /* SwiftDataStore.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, E40000000000000000000001 /* AppModelTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */, D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */, F50000000000000000000001 /* DestinationDeliveryStoreTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, E40000000000000000000002 /* AppLifecycleController.swift in Sources */, E40000000000000000000004 /* ActivityListView.swift in Sources */, E40000000000000000000005 /* TimerPanelView.swift in Sources */, E40000000000000000000006 /* HistoryView.swift in Sources */, E40000000000000000000007 /* SettingsView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */, D30000000000000000000002 /* PersistenceValues.swift in Sources */, D30000000000000000000003 /* ActivityRecord.swift in Sources */, D30000000000000000000006 /* SessionRecord.swift in Sources */, D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */, F50000000000000000000002 /* DeliveryDestination.swift in Sources */, F50000000000000000000003 /* DestinationDeliveryRecord.swift in Sources */, D30000000000000000000004 /* SessionRepository.swift in Sources */, D30000000000000000000005 /* SwiftDataStore.swift in Sources */, I50000000000000000000002 /* NotesLineFormatter.swift in Sources */, I50000000000000000000003 /* NotesSessionSink.swift in Sources */, I50000000000000000000004 /* AppleNotesAdapter.swift in Sources */, I50000000000000000000005 /* DeliveryTypes.swift in Sources */, I50000000000000000000006 /* NotionConfiguration.swift in Sources */, I50000000000000000000007 /* NotionSessionSink.swift in Sources */, I50000000000000000000008 /* KeychainNotionCredentialStore.swift in Sources */, I50000000000000000000009 /* NotionAPIClient.swift in Sources */, I50000000000000000000010 /* DeliveryCoordinator.swift in Sources */, I50000000000000000000025 /* NotificationScheduler.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, E40000000000000000000001 /* AppModelTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */, D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */, F50000000000000000000001 /* DestinationDeliveryStoreTests.swift in Sources */, I50000000000000000000001 /* NotesLineFormatterTests.swift in Sources */, I50000000000000000000028 /* IntegrationAdapterTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 		E40000000000000000000084 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E40000000000000000000003 /* ProductivityTimeUITests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
