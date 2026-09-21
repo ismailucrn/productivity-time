@@ -11,9 +11,10 @@ final class IntegrationAdapterTests: XCTestCase {
         let invocation = await runner.invocation
         XCTAssertEqual(result, .alreadyExists)
         XCTAssertEqual(invocation?.source, AppleNotesAdapter.scriptSource)
+        XCTAssertEqual(invocation?.handler, "appendProductivityTimeLine")
         XCTAssertFalse(invocation?.source.contains(session.titleSnapshot) ?? true)
-        XCTAssertEqual(invocation?.arguments.first, "My <note>")
-        XCTAssertTrue(invocation?.arguments.dropFirst().joined().contains("PT:\(session.id.uuidString.lowercased())") ?? false)
+        XCTAssertEqual(invocation?.parameters.first, "My <note>")
+        XCTAssertTrue(invocation?.parameters.dropFirst().joined().contains("PT:\(session.id.uuidString.lowercased())") ?? false)
     }
 
     func testNotionQueriesUUIDBeforeCreatingAndSkipsExistingPage() async throws {

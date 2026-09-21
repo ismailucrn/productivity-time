@@ -9,7 +9,7 @@ protocol NotesSessionSink: Sendable {
     func testConnection(to target: NotesTarget) async throws
 }
 
-struct AppleScriptInvocation: Equatable, Sendable { let source: String; let arguments: [String] }
+struct AppleScriptInvocation: Equatable, Sendable { let source: String; let handler: String; let parameters: [String] }
 protocol AppleScriptRunning: Sendable { func run(_ invocation: AppleScriptInvocation) async throws -> String }
 
 enum AppleScriptRunnerError: Error, Sendable { case permissionDenied, unavailable, failed }

@@ -3,7 +3,7 @@ import Foundation
 enum DeliveryResult: Equatable, Sendable { case created, alreadyExists }
 
 enum DeliveryError: Error, Equatable, Sendable {
-    case authorization, configuration, schema, permissionDenied, unavailable, network
+    case authorization, configuration, schema, permissionDenied, notesUnavailable, notionUnavailable, network
     case rateLimited(retryNotBefore: Date?)
     case unknown
 
@@ -13,7 +13,8 @@ enum DeliveryError: Error, Equatable, Sendable {
         case .configuration: "configuration"
         case .schema: "schema"
         case .permissionDenied: "permissionDenied"
-        case .unavailable: "notionUnavailable"
+        case .notesUnavailable: "notesUnavailable"
+        case .notionUnavailable: "notionUnavailable"
         case .network, .rateLimited: "network"
         case .unknown: "unknown"
         }
