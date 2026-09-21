@@ -38,6 +38,7 @@
                ReferencedContainer = "container:ProductivityTime.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference skipped = "NO"><BuildableReference BuildableIdentifier = "primary" BlueprintIdentifier = "E40000000000000000000041" BuildableName = "ProductivityTimeUITests.xctest" BlueprintName = "ProductivityTimeUITests" ReferencedContainer = "container:ProductivityTime.xcodeproj"></BuildableReference></TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

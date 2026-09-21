@@ -26,6 +26,13 @@
 		D30000000000000000000005 /* SwiftDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000016 /* SwiftDataStore.swift */; };
 		D30000000000000000000006 /* SessionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000018 /* SessionRecord.swift */; };
 		D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30000000000000000000019 /* ActiveSessionRecord.swift */; };
+		E40000000000000000000001 /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000011 /* AppModelTests.swift */; };
+		E40000000000000000000002 /* AppLifecycleController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000013 /* AppLifecycleController.swift */; };
+		E40000000000000000000003 /* ProductivityTimeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000021 /* ProductivityTimeUITests.swift */; };
+		E40000000000000000000004 /* ActivityListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000031 /* ActivityListView.swift */; };
+		E40000000000000000000005 /* TimerPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000032 /* TimerPanelView.swift */; };
+		E40000000000000000000006 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000033 /* HistoryView.swift */; };
+		E40000000000000000000007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E40000000000000000000034 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,11 +68,20 @@
 		D30000000000000000000016 /* SwiftDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataStore.swift; sourceTree = "<group>"; };
 		D30000000000000000000018 /* SessionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecord.swift; sourceTree = "<group>"; };
 		D30000000000000000000019 /* ActiveSessionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSessionRecord.swift; sourceTree = "<group>"; };
+		E40000000000000000000011 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		E40000000000000000000013 /* AppLifecycleController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleController.swift; sourceTree = "<group>"; };
+		E40000000000000000000021 /* ProductivityTimeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTimeUITests/ProductivityTimeUITests.swift; sourceTree = SOURCE_ROOT; };
+		E40000000000000000000023 /* ProductivityTimeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProductivityTimeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E40000000000000000000031 /* ActivityListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/Activities/ActivityListView.swift; sourceTree = SOURCE_ROOT; };
+		E40000000000000000000032 /* TimerPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/Timer/TimerPanelView.swift; sourceTree = SOURCE_ROOT; };
+		E40000000000000000000033 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/History/HistoryView.swift; sourceTree = SOURCE_ROOT; };
+		E40000000000000000000034 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityTime/Features/Settings/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10000000000000000000051 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000052 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		E40000000000000000000085 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -91,19 +107,25 @@
 		};
 		A10000000000000000000063 /* ProductivityTimeTests */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000014 /* AppLaunchTests.swift */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */, D30000000000000000000012 /* Persistence */,);
+			children = (A10000000000000000000014 /* AppLaunchTests.swift */, E40000000000000000000012 /* App */, B20000000000000000000012 /* Domain */, B20000000000000000000017 /* TestSupport */, D30000000000000000000012 /* Persistence */,);
 			path = ProductivityTimeTests;
+			sourceTree = "<group>";
+		};
+		E40000000000000000000012 /* App */ = {
+			isa = PBXGroup;
+			children = (E40000000000000000000011 /* AppModelTests.swift */,);
+			path = App;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000064 /* Products */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000016 /* ProductivityTime.app */, A10000000000000000000017 /* ProductivityTimeTests.xctest */,);
+			children = (A10000000000000000000016 /* ProductivityTime.app */, A10000000000000000000017 /* ProductivityTimeTests.xctest */, E40000000000000000000023 /* ProductivityTimeUITests.xctest */,);
 			name = Products;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000065 /* App */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000011 /* ProductivityTimeApp.swift */, A10000000000000000000012 /* AppModel.swift */, A10000000000000000000013 /* ContentView.swift */,);
+			children = (A10000000000000000000011 /* ProductivityTimeApp.swift */, A10000000000000000000012 /* AppModel.swift */, A10000000000000000000013 /* ContentView.swift */, E40000000000000000000013 /* AppLifecycleController.swift */,);
 			path = App;
 			sourceTree = "<group>";
 		};
@@ -168,12 +190,23 @@
 			productReference = A10000000000000000000017 /* ProductivityTimeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		E40000000000000000000041 /* ProductivityTimeUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E40000000000000000000074 /* Build configuration list for PBXNativeTarget "ProductivityTimeUITests" */;
+			buildPhases = (E40000000000000000000084 /* Sources */, E40000000000000000000085 /* Frameworks */, E40000000000000000000086 /* Resources */);
+			buildRules = ();
+			dependencies = (E40000000000000000000091 /* PBXTargetDependency */,);
+			name = ProductivityTimeUITests;
+			productName = ProductivityTimeUITests;
+			productReference = E40000000000000000000023 /* ProductivityTimeUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		A10000000000000000000031 /* Project object */ = {
 			isa = PBXProject;
-			attributes = { LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = { A10000000000000000000041 = { CreatedOnToolsVersion = 16.0; }; A10000000000000000000042 = { CreatedOnToolsVersion = 16.0; TestTargetID = A10000000000000000000041; }; }; };
+			attributes = { LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; TargetAttributes = { A10000000000000000000041 = { CreatedOnToolsVersion = 16.0; }; A10000000000000000000042 = { CreatedOnToolsVersion = 16.0; TestTargetID = A10000000000000000000041; }; E40000000000000000000041 = { CreatedOnToolsVersion = 16.0; TestTargetID = A10000000000000000000041; }; }; };
 			buildConfigurationList = A10000000000000000000073 /* Build configuration list for PBXProject "ProductivityTime" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
@@ -183,22 +216,25 @@
 			productRefGroup = A10000000000000000000064 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A10000000000000000000041 /* ProductivityTime */, A10000000000000000000042 /* ProductivityTimeTests */);
+			targets = (A10000000000000000000041 /* ProductivityTime */, A10000000000000000000042 /* ProductivityTimeTests */, E40000000000000000000041 /* ProductivityTimeUITests */);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A10000000000000000000082 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000084 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		E40000000000000000000086 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */, D30000000000000000000002 /* PersistenceValues.swift in Sources */, D30000000000000000000003 /* ActivityRecord.swift in Sources */, D30000000000000000000006 /* SessionRecord.swift in Sources */, D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */, D30000000000000000000004 /* SessionRepository.swift in Sources */, D30000000000000000000005 /* SwiftDataStore.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */, D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000081 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* ProductivityTimeApp.swift in Sources */, A10000000000000000000002 /* AppModel.swift in Sources */, A10000000000000000000003 /* ContentView.swift in Sources */, E40000000000000000000002 /* AppLifecycleController.swift in Sources */, E40000000000000000000004 /* ActivityListView.swift in Sources */, E40000000000000000000005 /* TimerPanelView.swift in Sources */, E40000000000000000000006 /* HistoryView.swift in Sources */, E40000000000000000000007 /* SettingsView.swift in Sources */, B20000000000000000000002 /* ActivityName.swift in Sources */, B20000000000000000000005 /* MonotonicClock.swift in Sources */, B20000000000000000000006 /* TimerMode.swift in Sources */, B20000000000000000000007 /* TimerState.swift in Sources */, B20000000000000000000008 /* TimerEngine.swift in Sources */, D30000000000000000000002 /* PersistenceValues.swift in Sources */, D30000000000000000000003 /* ActivityRecord.swift in Sources */, D30000000000000000000006 /* SessionRecord.swift in Sources */, D30000000000000000000007 /* ActiveSessionRecord.swift in Sources */, D30000000000000000000004 /* SessionRepository.swift in Sources */, D30000000000000000000005 /* SwiftDataStore.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000083 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* AppLaunchTests.swift in Sources */, E40000000000000000000001 /* AppModelTests.swift in Sources */, B20000000000000000000001 /* ActivityNameTests.swift in Sources */, B20000000000000000000003 /* TimerEngineTests.swift in Sources */, B20000000000000000000004 /* TestClock.swift in Sources */, D30000000000000000000001 /* SwiftDataStoreTests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
+		E40000000000000000000084 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E40000000000000000000003 /* ProductivityTimeUITests.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
 		A10000000000000000000091 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A10000000000000000000041 /* ProductivityTime */; targetProxy = A10000000000000000000021 /* PBXContainerItemProxy */; };
+		E40000000000000000000091 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A10000000000000000000041 /* ProductivityTime */; targetProxy = A10000000000000000000021 /* PBXContainerItemProxy */; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -208,12 +244,15 @@
 		A10000000000000000000112 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { CODE_SIGN_ENTITLEMENTS = ProductivityTime/Resources/ProductivityTime.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Productivity Time"; INFOPLIST_KEY_NSAppleEventsUsageDescription = "Productivity Time needs permission to add completed sessions to Apple Notes."; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.ismailucrn.ProductivityTime; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_VERSION = 6.0; }; name = Release; };
 		A10000000000000000000121 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.ismailucrn.ProductivityTimeTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ProductivityTime.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ProductivityTime"; }; name = Debug; };
 		A10000000000000000000122 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.ismailucrn.ProductivityTimeTests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ProductivityTime.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ProductivityTime"; }; name = Release; };
+		E40000000000000000000131 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = { ARCHS = arm64; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.ismailucrn.ProductivityTimeUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = ProductivityTime; }; name = Debug; };
+		E40000000000000000000132 /* Release */ = {isa = XCBuildConfiguration; buildSettings = { ARCHS = arm64; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.ismailucrn.ProductivityTimeUITests; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TEST_TARGET_NAME = ProductivityTime; }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
 		A10000000000000000000071 /* Build configuration list for PBXNativeTarget "ProductivityTime" */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000111 /* Debug */, A10000000000000000000112 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A10000000000000000000072 /* Build configuration list for PBXNativeTarget "ProductivityTimeTests" */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000121 /* Debug */, A10000000000000000000122 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A10000000000000000000073 /* Build configuration list for PBXProject "ProductivityTime" */ = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000101 /* Debug */, A10000000000000000000102 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		E40000000000000000000074 /* Build configuration list for PBXNativeTarget "ProductivityTimeUITests" */ = {isa = XCConfigurationList; buildConfigurations = (E40000000000000000000131 /* Debug */, E40000000000000000000132 /* Release */,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = A10000000000000000000031 /* Project object */;

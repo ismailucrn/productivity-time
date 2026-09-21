@@ -24,6 +24,22 @@ final class TimerEngine {
         }
     }
 
+    init(mode: TimerMode, clock: any MonotonicClock, restoredDuration: Duration, state: TimerState) {
+        self.mode = mode
+        self.clock = clock
+        self.state = state
+
+        switch mode {
+        case .stopwatch:
+            stopwatchAccumulated = restoredDuration
+            stopwatchSegmentStartedAt = nil
+            timerRemaining = .zero
+        case .timer:
+            timerRemaining = restoredDuration
+            timerDeadline = nil
+        }
+    }
+
     var displayDuration: Duration {
         switch mode {
         case .stopwatch:
