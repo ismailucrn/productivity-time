@@ -77,6 +77,24 @@ final class IntegrationAdapterTests: XCTestCase {
         XCTAssertTrue(granted); XCTAssertEqual(requests, [TimerNotificationRequest(identifier: "timer.1", deadline: deadline, title: "Writing")]); XCTAssertEqual(removed, ["timer.1"])
     }
 
+    func testNotionCredentialReadFailuresAreSanitizedBeforeAnyRequest() async {
+        let client = NotionAPIClient(credentials: ThrowingCredentials(), http: RecordingHTTPClient(responses: []))
+        await assertSanitizedCredentialFailure(client: client)
+    }
+
+    func testNotionRejectsEmptyAndNonUTF8TokensWithTypedSanitizedError() async {
+        let empty = NotionAPIClient(credentials: MemoryCredentials(token: Data()), http: RecordingHTTPClient(responses: []))
+        let invalid = NotionAPIClient(credentials: MemoryCredentials(token: Data([0xFF])), http: RecordingHTTPClient(responses: []))
+        await assertSanitizedCredentialFailure(client: empty)
+        await assertSanitizedCredentialFailure(client: invalid)
+    }
+
+    private func assertSanitizedCredentialFailure(client: NotionAPIClient) async {
+        do { try await client.testConnection(configuration: NotionConfiguration(dataSourceID: "source")); XCTFail("Expected credentials failure") }
+        catch let error as DeliveryError { XCTAssertEqual(error, .configuration); XCTAssertFalse(String(describing: error).contains("secret")) }
+        catch { XCTFail("Only sanitized DeliveryError may escape") }
+    }
+
     private func makeSession(title: String = "Writing") -> CompletedSession { CompletedSession(id: UUID(uuidString: "A0B1C2D3-E4F5-4678-9ABC-DEF012345678")!, activityID: UUID(), titleSnapshot: title, mode: .timer, duration: .seconds(60), completedAt: Date(timeIntervalSince1970: 1_704_067_200), deliveryState: .pending) }
     private func schemaResponse() -> FakeResponse { let properties = NotionConfiguration.expectedProperties.mapValues { ["type": $0] }; return jsonResponse(["properties": properties]) }
     private func queryResponse(results: [Any]) -> FakeResponse { jsonResponse(["results": results]) }
@@ -90,6 +108,7 @@ private actor RecordingScriptRunner: AppleScriptRunning {
     func run(_ invocation: AppleScriptInvocation) async throws -> String { self.invocation = invocation; return response }
 }
 private struct MemoryCredentials: NotionCredentialStore { let token: Data?; func readToken() throws -> Data? { token }; func writeToken(_ token: Data) throws {}; func removeToken() throws {} }
+private struct ThrowingCredentials: NotionCredentialStore { func readToken() throws -> Data? { throw NotionCredentialError.unavailable }; func writeToken(_ token: Data) throws {}; func removeToken() throws {} }
 private struct FakeResponse { let data: Data; let status: Int; let headers: [String: String]; init(data: Data, status: Int, headers: [String: String] = [:]) { self.data = data; self.status = status; self.headers = headers } }
 private actor RecordingHTTPClient: NotionHTTPClient {
     private var responses: [FakeResponse]; private(set) var requests = [URLRequest]()

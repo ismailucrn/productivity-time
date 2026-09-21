@@ -32,7 +32,13 @@ actor NotionAPIClient: NotionSessionSink {
         return !results.isEmpty
     }
     private func request(path: String, method: String, body: [String: Any]?) async throws -> (Data, HTTPURLResponse) {
-        guard let token = try credentials.readToken(), !token.isEmpty, let text = String(data: token, encoding: .utf8), let url = URL(string: path, relativeTo: baseURL) else { throw DeliveryError.configuration }
+        let token: Data
+        do {
+            guard let value = try credentials.readToken(), !value.isEmpty else { throw DeliveryError.configuration }
+            token = value
+        } catch is DeliveryError { throw DeliveryError.configuration }
+        catch { throw DeliveryError.configuration }
+        guard let text = String(data: token, encoding: .utf8), let url = URL(string: path, relativeTo: baseURL) else { throw DeliveryError.configuration }
         var request = URLRequest(url: url); request.httpMethod = method; request.setValue("Bearer \(text)", forHTTPHeaderField: "Authorization"); request.setValue("2026-03-11", forHTTPHeaderField: "Notion-Version")
         if let body { request.setValue("application/json", forHTTPHeaderField: "Content-Type"); request.httpBody = try JSONSerialization.data(withJSONObject: body) }
         do { return try await http.execute(request) } catch let error as DeliveryError { throw error } catch { throw DeliveryError.network }
