@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Productivity Time is a lightweight native macOS application for tracking focused activities with either a stopwatch or a countdown timer. The MVP prioritizes instant interaction, correct session semantics, low idle energy use, and reliable local delivery to Apple Notes.
+Productivity Time is a lightweight native macOS application for tracking focused activities with either a stopwatch or a countdown timer. The MVP prioritizes instant interaction, correct session semantics, low idle energy use, and reliable local delivery to both Apple Notes and Notion.
 
 The application is for local personal use. It is not an App Store product in this phase.
 
@@ -12,9 +12,10 @@ The application is for local personal use. It is not an App Store product in thi
 - Use a normal single-window macOS application, not a menu-bar application.
 - Let users create, rename, delete, and select saved activities such as Study, Reading, or Rest.
 - Allow only one active timer or stopwatch at a time.
-- Show a simple local history with title, mode, duration, completion date, and Apple Notes delivery state.
+- Show a simple local history with title, mode, duration, completion date, and independent Apple Notes and Notion delivery states.
 - Do not include charts, analytics, cloud sync, telemetry, login items, or a background helper.
-- Defer Notion from the MVP. It remains a required post-MVP integration and will use a Keychain-stored token and the Notion REST API.
+- Deliver every completed session to both Apple Notes and Notion. Store the user-supplied Notion internal-integration token only in Keychain, and store the non-secret Notion data-source ID in preferences.
+- Do not implement OAuth or a hosted callback service. A user configures the Notion integration manually in Settings.
 
 ## Technology Stack
 
@@ -25,6 +26,8 @@ The application is for local personal use. It is not an App Store product in thi
 - `ContinuousClock` through an injectable clock abstraction for monotonic runtime measurement
 - UserNotifications for timer completion notifications and the system notification sound
 - `NSAppleScript` with a fixed handler and parameterized values for Apple Notes automation
+- Security framework Keychain APIs for the Notion internal-integration token
+- `URLSession` for Notion REST requests
 - Swift Testing or XCTest for unit and integration tests
 - Xcode project with no third-party packages
 
@@ -36,7 +39,9 @@ The main window contains an activity list and a focused timer panel. A user sele
 
 Activity names are trimmed, contain 1 through 80 characters, and are unique using case-insensitive comparison. Renaming or deleting an activity never changes the title snapshot stored in completed sessions. An active activity cannot be deleted.
 
-The history view is read-only in the MVP. It shows completed sessions newest first and exposes Retry for a failed Apple Notes delivery. Settings contain the Apple Notes target name, which defaults to `Productivity Time Sessions`, notification permission state, and an Apple Notes connection test.
+The history view is read-only in the MVP. It shows completed sessions newest first and exposes separate delivery state and Retry commands for failed Apple Notes and Notion deliveries; retrying one destination never resends the other.
+
+Settings contain the Apple Notes target name, which defaults to `Productivity Time Sessions`, notification permission state, and an Apple Notes connection test. They also contain a user-entered Notion internal-integration token, a non-secret Notion data-source ID stored in preferences, and a Notion schema/connection test. The token field displays no stored secret and writes only through Keychain. The Notion test verifies that the configured integration can access the selected data source and that the expected session UUID, title, duration, and completion-date properties are usable before normal delivery is enabled.
 
 Closing the main window leaves the application and active counter running. Quitting with Command-Q saves the active session as paused. Time spent while the process is not running does not count. On the next launch, the user can resume or discard the saved session.
 
@@ -68,16 +73,16 @@ The timer domain is a state machine independent of SwiftUI. UI refresh ticks nev
 - The visible counter refreshes at most once per second.
 - A hidden stopwatch has no periodic task.
 - A running timer has one suspended task waiting for its deadline and one scheduled user notification.
-- No polling loop checks Apple Notes delivery.
+- No polling loop checks Apple Notes or Notion delivery.
 - Persistence is updated on state transitions and lifecycle events, never once per display tick.
 - The application does not request an idle-sleep assertion or keep the Mac awake.
-- Integration work runs off the main actor and only after a session is committed locally.
+- Integration work runs off the main actor and only after a session is committed locally. Each destination is retried only at app launch, after its successful connection test, or through its explicit Retry command.
 
 ## Data Model and Interfaces
 
 `Activity` stores a UUID, validated name, and creation date.
 
-`Session` stores a stable UUID, activity-title snapshot, `timer` or `stopwatch` mode, duration in whole seconds, completion date, and Apple Notes delivery state. Delivery states are `pending`, `delivering`, `delivered`, and `failed` with a sanitized optional error category.
+`Session` stores a stable UUID, activity-title snapshot, `timer` or `stopwatch` mode, duration in whole seconds, and completion date. It owns one independent durable delivery record per destination: Apple Notes and Notion. Each destination record has `pending`, `delivering`, `delivered`, or `failed` state plus a sanitized optional error category. A session may therefore be delivered to Apple Notes while Notion is pending or failed (and vice versa); a partial success is never collapsed into a single aggregate state.
 
 `ActiveSessionSnapshot` stores the activity identifier and title, mode, configured duration when applicable, accumulated or remaining duration, and paused/running state needed for graceful lifecycle restoration.
 
@@ -101,6 +106,17 @@ protocol NotesSessionSink: Sendable {
     func testConnection(to noteName: String) async throws
 }
 
+protocol NotionSessionSink: Sendable {
+    func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws
+    func testConnection(configuration: NotionConfiguration) async throws
+}
+
+protocol NotionCredentialStore: Sendable {
+    func saveToken(_ token: String) throws
+    func loadToken() throws -> String?
+    func removeToken() throws
+}
+
 protocol NotificationScheduling: Sendable {
     func requestAuthorization() async throws -> Bool
     func scheduleTimerCompletion(sessionID: UUID, title: String, at date: Date) async throws
@@ -115,11 +131,12 @@ Pure value types bridge the domain and SwiftData models so domain tests do not r
 1. A domain transition returns a single `CompletionEvent`.
 2. The application creates a `CompletedSession` with a UUID and saves it locally.
 3. The UI reflects the saved session immediately.
-4. A serialized delivery coordinator marks the Notes state as delivering.
-5. Apple Notes delivery succeeds and becomes delivered, or fails and becomes failed without deleting the session.
-6. Failed items retry only on app launch, a successful connection test, or an explicit Retry command.
+4. Per-destination durable outbox records begin as pending. On cold launch, any interrupted `delivering` records become recoverable for that same destination only.
+5. A serialized delivery coordinator claims one destination record and marks only that destination as delivering.
+6. Apple Notes and Notion each succeed to delivered or fail to failed without deleting the session or changing the other destination's record.
+7. Failed items retry only on app launch, that destination's successful connection test, or an explicit Retry command. Partial success is represented and recovered independently.
 
-This local-first ordering prevents data loss and provides a durable outbox without keeping a background polling loop alive.
+This local-first ordering prevents data loss and provides a per-destination durable outbox without keeping a background polling loop alive.
 
 ## Apple Notes Integration
 
@@ -135,12 +152,20 @@ The AppleScript source is fixed application code. Activity titles, formatted dat
 
 The app includes `NSAppleEventsUsageDescription` and the Apple Events hardened-runtime entitlement. Permission denial, a missing Notes application, a deleted target note, or a script error becomes a sanitized delivery failure. If a stored Notes identifier becomes invalid, the adapter finds or recreates the note by configured name.
 
+## Notion Integration
+
+Notion delivery uses the configured internal integration and Notion REST API through `URLSession`. The application never stores, prints, logs, or commits the token outside Keychain. The non-secret data-source ID is stored in user preferences and may be changed in Settings.
+
+The adapter first queries the configured data source for the completed session's stable UUID. If an existing matching page is found, delivery succeeds without a create request. If no match exists, it creates exactly one page containing the title, mode, duration, completion date, and stable session UUID using the user-validated schema mapping. If a create request has an ambiguous result (transport disconnect, timeout, or an uncertain response after the server may have accepted it), the adapter queries by UUID before it ever attempts another create. It never blindly retries a POST. Definitive validation, authorization, schema, or data-source errors map to sanitized failure categories and leave that destination retryable after configuration is corrected.
+
+The data-source connection/schema test reads the configured data source and checks the required properties before delivery. It does not create a session page. OAuth, browser authorization, hosted callback services, and automatic token acquisition are out of scope.
+
 ## Error Handling and Privacy
 
-- Tokens, credentials, note bodies, activity names, and session details are never written to diagnostic logs.
+- Tokens, credentials, Notion request or response bodies, note bodies, activity names, and session details are never written to diagnostic logs.
 - User-facing errors identify the category and recovery action without exposing script source or private note content.
-- A denied Automation permission remains visible in Settings with guidance to macOS System Settings.
-- Notification denial does not block timer completion or Apple Notes delivery.
+- A denied Automation permission remains visible in Settings with guidance to macOS System Settings. Missing or rejected Notion credentials and invalid data-source/schema configuration are visible as sanitized, actionable destination-specific states.
+- Notification denial does not block timer completion, Apple Notes delivery, or Notion delivery.
 - Persistence failure prevents external delivery because there is no durable local session to identify.
 - App termination cancels in-memory tasks only after saving a paused snapshot when possible.
 
@@ -148,7 +173,7 @@ The app includes `NSAppleEventsUsageDescription` and the Apple Events hardened-r
 
 Deterministic tests use a fake monotonic clock. They cover start, pause, resume, reset, zero completion, cancellation, repeated completion signals, sleep/wake advancement, and graceful restoration. In-memory SwiftData tests cover activity rules, session title snapshots, and delivery-state transitions.
 
-The Notes boundary is tested with a fake adapter for permission denial, note lookup failure, partial delivery failure, retry, and duplicate UUID suppression. A separate manual smoke test covers the real macOS Automation prompt, note creation, append, and retry behavior.
+The Apple Notes and Notion boundaries are tested with fakes for permission or authorization denial, lookup failure, partial destination failure, destination-specific retry, restart recovery, and duplicate UUID suppression. Notion tests verify query-before-create and an ambiguous POST outcome that re-queries before any further create request. A separate manual smoke test covers the real macOS Automation prompt, note creation, append, retry, Notion schema validation, and one-page UUID deduplication behavior.
 
 SwiftUI tests cover activity management, mode selection, duration entry, history, Retry, restore/discard, keyboard navigation, and accessibility labels. Release verification checks that the application launches promptly, has no sustained idle CPU work, and produces no periodic wakeups for a hidden stopwatch.
 
@@ -160,7 +185,6 @@ Implementation tasks run sequentially unless their write ownership is provably d
 
 ## Out of Scope
 
-- Notion implementation
 - OAuth or a hosted callback service
 - Mac App Store sandbox compatibility
 - Signing, notarization, or public distribution

@@ -1,12 +1,14 @@
 name = "integrations_implementer"
-description = "Implements the MVP Apple Notes adapter and later assigned Notion work, including permissions, credentials, idempotency, retries, and integration tests."
+description = "Implements MVP Apple Notes and Notion adapters, Keychain credentials, permissions, idempotency, retries, and integration tests."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Work only within the integration files and acceptance criteria assigned by the orchestrator.
 Use test-driven development and protocol-driven adapters. Never hard-code, print, or commit credentials or private note content.
-Use stable session identifiers and explicit retry behavior so partial failures cannot silently duplicate records.
+Use stable session identifiers and independently durable delivery states for Apple Notes and Notion so partial failures recover and retry without silently duplicating records.
+Keep the user-supplied Notion internal-integration token only in Keychain; retain only the non-secret Notion data-source ID in preferences. Query Notion by stable session UUID before create and, after any ambiguous POST outcome, re-query before any further create attempt.
+Use fixed AppleScript handlers with parameterized Apple event data and a stable UUID marker; never interpolate user values into executable script source.
 Keep dependencies, caches, generated files, and scripting environments inside the repository; never use sudo or global package installation.
 Do not change timer semantics or unrelated UI files. Return changed files, commands run, exact results, and remaining risks.
 """

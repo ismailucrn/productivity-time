@@ -12,8 +12,8 @@
 - Resetting a stopwatch records a completed session; pausing or stopping without reset does not.
 - A timer records a completed session only when the timer reaches zero.
 - Store title, mode, elapsed or configured duration, completion date, and a stable session identifier.
-- For the MVP, deliver every completed session to Apple Notes as title, duration, and date.
-- After the MVP, add Notion delivery with the same session data and idempotency guarantees.
+- For the MVP, deliver every completed session to both Apple Notes and Notion as title, duration, and date.
+- Maintain independent durable, idempotent delivery state for Apple Notes and Notion, so either destination can succeed, fail, retry, and recover without masking the other.
 - Make external writes idempotent so retries cannot silently create duplicate session records.
 - Store credentials and tokens through an appropriate macOS credential mechanism. Never commit secrets.
 
@@ -41,7 +41,7 @@
 - The primary Codex session is the orchestrator. It owns clarification, architecture, decomposition, task assignment, integration, verification, and final reporting.
 - For implementation, delegate bounded work to the project custom agents under `.codex/agents/`.
 - Use `macos_core_implementer` for the application shell, timer/stopwatch domain, persistence, and macOS lifecycle.
-- Use `integrations_implementer` for the MVP Apple Notes adapter and, only when separately assigned after the MVP, the Notion adapter, permissions, credentials, retries, and idempotency.
+- Use `integrations_implementer` for the MVP Apple Notes and Notion adapters, permissions, Keychain credentials, retries, idempotency, and integration tests.
 - Use `quality_implementer` for test infrastructure, regression tests, accessibility validation, build verification, and targeted fixes assigned by the orchestrator.
 - All implementation agents use `gpt-5.6-terra` with high reasoning effort.
 - Use the read-only `orchestration_advisor`, which runs `gpt-5.6-sol` with high reasoning effort, only to review architecture, task decomposition, sequencing, and integration decisions. It must not implement code or perform the final security review.
