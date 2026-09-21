@@ -143,10 +143,10 @@ This local-first ordering prevents data loss and provides a per-destination dura
 The app finds or creates one note in the default Notes account with the configured name. The default name is `Productivity Time Sessions`. Each completed session appends one line containing:
 
 ```text
-Title — Mode — Duration — Local date and time — PT:<full-session-UUID>
+Title — Mode — Duration — Local date and time
 ```
 
-The full stable identifier is an intentional machine marker. Before appending, the adapter reads the target note body and checks for that marker. If it already exists, delivery returns success without appending. This makes explicit retries idempotent.
+Before appending, the adapter reads the target note body and checks for this exact formatted line. If it already exists, delivery returns success without appending. This makes explicit retries idempotent without cluttering the note with machine identifiers.
 
 The AppleScript source is fixed application code. Activity titles, formatted dates, note names, identifiers, and durations are passed as Apple event handler arguments and escaped as data; none are interpolated into executable script text. Notes writes are serialized to avoid concurrent read-modify-write races.
 

@@ -164,12 +164,12 @@
 - `NotesSessionSink.deliver(_:to:)` and `testConnection(to:)` are async and Sendable.
 - `NotionSessionSink.deliver(_:configuration:)` and `testConnection(configuration:)` are async and Sendable; `NotionConfiguration` contains only non-secret data-source/schema configuration.
 - `NotionCredentialStore` writes and reads only the user-supplied token from Keychain.
-- `NotesLineFormatter` returns title, mode, `HH:mm:ss`, local date/time, and `PT:<full UUID>`.
+- `NotesLineFormatter` returns title, mode, `HH:mm:ss`, and local date/time.
 - Serialized `DeliveryCoordinator` exposes `deliverPending(destination:)` and `retry(sessionID:destination:)`.
 
 - [ ] Write and fail pure Notes formatter tests using fixed locale/calendar/time zone and hostile quotes, slashes, `<>&`, Unicode, and emoji; implement deterministic formatting without executable AppleScript interpolation.
-- [ ] Write and fail AppleScript boundary tests proving source is constant, hostile values are Apple event data, the stable UUID marker suppresses duplicates, and permission, note lookup, or script failures map to typed sanitized errors.
-- [ ] Implement fixed-handler parameterized Apple Notes lookup, configured-name fallback, default-account creation, full UUID marker scan, and serialized one-line append.
+- [ ] Write and fail AppleScript boundary tests proving source is constant, hostile values are Apple event data, duplicate line suppression works, and permission, note lookup, or script failures map to typed sanitized errors.
+- [ ] Implement fixed-handler parameterized Apple Notes lookup, configured-name fallback, default-account creation, duplicate line scan, and serialized one-line append.
 - [ ] Write and fail Keychain tests through an injectable credential-store protocol proving tokens never enter preferences, logs, request descriptions, or test failure output; implement the Security Keychain adapter without global installation or secret fixtures.
 - [ ] Write and fail Notion client tests using a `URLProtocol` stub: query by stable UUID occurs before create; an existing UUID produces no create; normal create contains title/mode/duration/date/UUID; and definitive authorization, schema, and data-source failures are typed and sanitized.
 - [ ] Implement `URLSession` Notion requests with Authorization data obtained only at request execution, the configured data-source ID from preferences, and validated schema mapping.

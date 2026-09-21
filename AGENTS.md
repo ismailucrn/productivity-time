@@ -43,7 +43,9 @@
 - Use `macos_core_implementer` for the application shell, timer/stopwatch domain, persistence, and macOS lifecycle.
 - Use `integrations_implementer` for the MVP Apple Notes and Notion adapters, permissions, Keychain credentials, retries, idempotency, and integration tests.
 - Use `quality_implementer` for test infrastructure, regression tests, accessibility validation, build verification, and targeted fixes assigned by the orchestrator.
+- Use `github_manager` for GitHub workflows, branch management, pull requests, issue tracking, and release milestone coordination.
 - All implementation agents use `gpt-5.6-terra` with high reasoning effort.
+- The `github_manager` uses `gpt-5.6-luna` with high reasoning effort.
 - Use the read-only `orchestration_advisor`, which runs `gpt-5.6-sol` with high reasoning effort, only to review architecture, task decomposition, sequencing, and integration decisions. It must not implement code or perform the final security review.
 - Give every delegated write task explicit file ownership and acceptance criteria.
 - Run independent read-heavy tasks in parallel when useful. Run write-heavy tasks in parallel only when file ownership does not overlap; otherwise run them sequentially.
