@@ -19,14 +19,13 @@ struct NotesLineFormatter: Sendable {
     }
 
     func format(_ session: CompletedSession) -> NotesFormattedLine {
-        let marker = "PT:\(session.id.uuidString.lowercased())"
         let mode = session.mode.rawValue
         let duration = durationText(session.duration)
         let date = dateText(session.completedAt)
         let plainTitle = session.titleSnapshot.replacingOccurrences(of: "\n", with: " ")
-        let plainText = "\(plainTitle) — \(mode) — \(duration) — \(date) — \(marker)"
+        let plainText = "\(plainTitle) — \(mode) — \(duration) — \(date)"
         let html = htmlEscaped(plainText)
-        return NotesFormattedLine(plainText: plainText, html: html, marker: marker)
+        return NotesFormattedLine(plainText: plainText, html: html, marker: plainText)
     }
 
     private func durationText(_ duration: Duration) -> String {

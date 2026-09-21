@@ -14,7 +14,8 @@ final class IntegrationAdapterTests: XCTestCase {
         XCTAssertEqual(invocation?.handler, "appendProductivityTimeLine")
         XCTAssertFalse(invocation?.source.contains(session.titleSnapshot) ?? true)
         XCTAssertEqual(invocation?.parameters.first, "My <note>")
-        XCTAssertTrue(invocation?.parameters.dropFirst().joined().contains("PT:\(session.id.uuidString.lowercased())") ?? false)
+        XCTAssertTrue(invocation?.parameters.dropFirst().joined().contains("00:01:00") ?? false)
+        XCTAssertFalse(invocation?.parameters.dropFirst().joined().contains("PT:") ?? true)
     }
 
     func testNotionQueriesUUIDBeforeCreatingAndSkipsExistingPage() async throws {

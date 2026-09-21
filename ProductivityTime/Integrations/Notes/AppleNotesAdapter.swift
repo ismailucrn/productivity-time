@@ -12,7 +12,7 @@ on appendProductivityTimeLine(noteName, htmlLine, markerText)
    if name of candidate is noteName then set noteRef to candidate
   end repeat
   if noteRef is missing value then set noteRef to make new note at folderRef with properties {name:noteName, body:""}
-  if body of noteRef contains markerText then return "already_exists"
+  if (body of noteRef contains markerText) or (body of noteRef contains htmlLine) then return "already_exists"
   set body of noteRef to (body of noteRef) & "<br>" & htmlLine
  end tell
  return "created"

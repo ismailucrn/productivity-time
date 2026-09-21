@@ -1,10 +1,17 @@
 import Foundation
 
+@MainActor
+protocol DeliveryCoordinating: AnyObject {
+    func deliverPending(destination: DeliveryDestination) async -> [DeliveryAttemptResult]
+    func deliverAllPending() async -> [DeliveryAttemptResult]
+    func retry(sessionID: UUID, destination: DeliveryDestination) async -> DeliveryAttemptResult
+}
+
 @MainActor final class DeliveryCoordinator {
     private let repository: any SessionRepository; private let notes: any NotesSessionSink; private let notion: any NotionSessionSink
-    private let notesTarget: @Sendable () -> NotesTarget; private let notionConfiguration: @Sendable () -> NotionConfiguration; private let now: @Sendable () -> Date
+    private let notesTarget: () -> NotesTarget; private let notionConfiguration: () -> NotionConfiguration; private let now: @Sendable () -> Date
     private var inFlight = Set<String>()
-    init(repository: any SessionRepository, notes: any NotesSessionSink, notion: any NotionSessionSink, notesTarget: @escaping @Sendable () -> NotesTarget, notionConfiguration: @escaping @Sendable () -> NotionConfiguration, now: @escaping @Sendable () -> Date = Date.init) { self.repository = repository; self.notes = notes; self.notion = notion; self.notesTarget = notesTarget; self.notionConfiguration = notionConfiguration; self.now = now }
+    init(repository: any SessionRepository, notes: any NotesSessionSink, notion: any NotionSessionSink, notesTarget: @escaping () -> NotesTarget, notionConfiguration: @escaping () -> NotionConfiguration, now: @escaping @Sendable () -> Date = Date.init) { self.repository = repository; self.notes = notes; self.notion = notion; self.notesTarget = notesTarget; self.notionConfiguration = notionConfiguration; self.now = now }
     func deliverPending(destination: DeliveryDestination) async -> [DeliveryAttemptResult] {
         let jobs: [DestinationDelivery]
         do { jobs = try repository.pendingDeliveryRecords(for: destination, at: now()) }
@@ -76,3 +83,5 @@ import Foundation
         DeliveryAttemptResult(sessionID: sessionID, destination: destination, outcome: .failed(category.rawValue))
     }
 }
+
+extension DeliveryCoordinator: DeliveryCoordinating {}

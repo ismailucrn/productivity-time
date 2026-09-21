@@ -333,6 +333,132 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(scheduler.activeDeadlineDurations, [.seconds(60)])
     }
 
+    func testNaturalTimerCompletionPersistsBothDestinationJobsBeforeStartingDelivery() async throws {
+        let repository = InMemorySessionRepository()
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let delivery = RecordingDeliveryCoordinator()
+        let model = AppModel(
+            repository: repository,
+            clock: clock,
+            refreshScheduler: TestRefreshScheduler(),
+            deliveryCoordinator: delivery,
+            notificationScheduler: RecordingNotificationScheduler()
+        )
+        let activity = try model.createActivity(named: "Writing")
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        clock.advance(by: .seconds(60))
+
+        try model.completeTimerIfDueForTesting()
+        await Task.yield()
+
+        XCTAssertEqual(repository.savedCompletedSessions.count, 1)
+        XCTAssertEqual(Set(repository.jobs.map(\.destination)), Set(DeliveryDestination.allCases))
+        let deliveryCalls = await delivery.deliverAllCallCount
+        XCTAssertEqual(deliveryCalls, 1)
+    }
+
+    func testTimerNotificationUsesStableRuntimeIdentifierAndPauseResumeReplacesDeadline() async throws {
+        let repository = InMemorySessionRepository()
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let notifications = RecordingNotificationScheduler()
+        let model = AppModel(
+            repository: repository,
+            clock: clock,
+            refreshScheduler: TestRefreshScheduler(),
+            deliveryCoordinator: RecordingDeliveryCoordinator(),
+            notificationScheduler: notifications
+        )
+        let activity = try model.createActivity(named: "Writing")
+
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        await Task.yield()
+        let first = await notifications.requests
+        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(first[0].deadline, Date(timeIntervalSince1970: 1_060))
+        let identifier = first[0].identifier
+
+        clock.advance(by: .seconds(10))
+        try model.pause()
+        await Task.yield()
+        let removed = await notifications.removed
+        XCTAssertEqual(removed, [identifier])
+
+        try model.resume()
+        await Task.yield()
+        let requests = await notifications.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests[1].identifier, identifier)
+        XCTAssertEqual(requests[1].deadline, Date(timeIntervalSince1970: 1_060))
+    }
+
+    func testCompletionPersistenceFailureDoesNotStartDeliveryOrTouchNotificationBoundary() async throws {
+        let repository = InMemorySessionRepository()
+        repository.shouldFailSavingCompletedSession = true
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let delivery = RecordingDeliveryCoordinator()
+        let notifications = RecordingNotificationScheduler()
+        let model = AppModel(
+            repository: repository,
+            clock: clock,
+            refreshScheduler: TestRefreshScheduler(),
+            deliveryCoordinator: delivery,
+            notificationScheduler: notifications
+        )
+        let activity = try model.createActivity(named: "Writing")
+        try model.startStopwatch(for: activity.id)
+        clock.advance(by: .seconds(5))
+
+        XCTAssertThrowsError(try model.reset())
+        XCTAssertEqual(delivery.deliverAllCallCountSynchronously, 0)
+        let notificationOperations = await notifications.operationCount
+        XCTAssertEqual(notificationOperations, 0)
+    }
+
+    func testTimerCancelAndNaturalCompletionRemoveItsNotificationButStopwatchNeverSchedulesOne() async throws {
+        let repository = InMemorySessionRepository()
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
+        let notifications = RecordingNotificationScheduler()
+        let model = AppModel(repository: repository, clock: clock, refreshScheduler: TestRefreshScheduler(), deliveryCoordinator: RecordingDeliveryCoordinator(), notificationScheduler: notifications)
+        let activity = try model.createActivity(named: "Writing")
+
+        try model.startStopwatch(for: activity.id)
+        await Task.yield()
+        let stopwatchRequests = await notifications.requests
+        XCTAssertTrue(stopwatchRequests.isEmpty)
+        try model.cancel()
+
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        await Task.yield()
+        let timerRequests = await notifications.requests
+        let identifier = try XCTUnwrap(timerRequests.first?.identifier)
+        try model.cancel()
+        await Task.yield()
+        let removedAfterCancel = await notifications.removed
+        XCTAssertEqual(removedAfterCancel, [identifier])
+
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        clock.advance(by: .seconds(60))
+        try model.completeTimerIfDueForTesting()
+        await Task.yield()
+        let removed = await notifications.removed
+        XCTAssertEqual(removed.count, 2)
+    }
+
+    func testDeniedTimerNotificationAuthorizationLeavesTimerRunningAndReportsSanitizedError() async throws {
+        let repository = InMemorySessionRepository()
+        let notifications = RecordingNotificationScheduler(granted: false)
+        let model = AppModel(repository: repository, clock: TestClock(date: Date(timeIntervalSince1970: 1_000)), refreshScheduler: TestRefreshScheduler(), deliveryCoordinator: RecordingDeliveryCoordinator(), notificationScheduler: notifications)
+        let activity = try model.createActivity(named: "Writing")
+
+        try model.startTimer(for: activity.id, duration: .seconds(60))
+        await Task.yield()
+
+        XCTAssertEqual(model.activeSession?.state, .running)
+        let deniedRequests = await notifications.requests
+        XCTAssertTrue(deniedRequests.isEmpty)
+        XCTAssertEqual(model.lastError, "Timer notification could not be scheduled. Enable notifications in System Settings and try again.")
+    }
+
 }
 
 @MainActor
@@ -342,6 +468,7 @@ private final class InMemorySessionRepository: SessionRepository {
     private var activeSnapshot: ActiveSessionSnapshot?
     var savedActiveSnapshot: ActiveSessionSnapshot? { activeSnapshot }
     private(set) var recoveryCallCount = 0
+    private(set) var jobs: [DestinationDelivery] = []
     var shouldFailSavingCompletedSession = false
     var shouldFailLoadingCompletedSessions = false
 
@@ -357,14 +484,17 @@ private final class InMemorySessionRepository: SessionRepository {
     func saveCompleted(_ session: CompletedSession) throws {
         guard !shouldFailSavingCompletedSession else { throw TestRepositoryError.persistenceFailed }
         savedCompletedSessions.append(session)
+        jobs += DeliveryDestination.allCases.map {
+            DestinationDelivery(sessionID: session.id, destination: $0, phase: .pending, errorCategory: nil, retryNotBefore: nil)
+        }
     }
     func completedSessions() throws -> [CompletedSession] {
         guard !shouldFailLoadingCompletedSessions else { throw TestRepositoryError.persistenceFailed }
         return savedCompletedSessions
     }
     func pendingDeliverySessions() throws -> [CompletedSession] { [] }
-    func deliveryRecords(for sessionID: UUID) throws -> [DestinationDelivery] { [] }
-    func pendingDeliveryRecords(for destination: DeliveryDestination, at date: Date) throws -> [DestinationDelivery] { [] }
+    func deliveryRecords(for sessionID: UUID) throws -> [DestinationDelivery] { jobs.filter { $0.sessionID == sessionID } }
+    func pendingDeliveryRecords(for destination: DeliveryDestination, at date: Date) throws -> [DestinationDelivery] { jobs.filter { $0.destination == destination && $0.phase == .pending } }
     func claimDelivery(sessionID: UUID, destination: DeliveryDestination, at date: Date) throws -> DestinationDelivery? { nil }
     func markDeliverySucceeded(sessionID: UUID, destination: DeliveryDestination) throws {}
     func markDeliveryFailed(sessionID: UUID, destination: DeliveryDestination, errorCategory: String, retryNotBefore: Date?) throws {}
@@ -414,4 +544,35 @@ private final class TestRefreshTask: RefreshTask {
     init(action: @escaping @MainActor () -> Void = {}) { self.action = action }
     func cancel() { isCancelled = true }
     func fire() { action() }
+}
+
+@MainActor
+private final class RecordingDeliveryCoordinator: DeliveryCoordinating {
+    private(set) var deliverAllCallCountSynchronously = 0
+    var deliverAllCallCount: Int { deliverAllCallCountSynchronously }
+
+    func deliverAllPending() async -> [DeliveryAttemptResult] {
+        deliverAllCallCountSynchronously += 1
+        return []
+    }
+
+    func deliverPending(destination: DeliveryDestination) async -> [DeliveryAttemptResult] { [] }
+    func retry(sessionID: UUID, destination: DeliveryDestination) async -> DeliveryAttemptResult {
+        DeliveryAttemptResult(sessionID: sessionID, destination: destination, outcome: .skipped)
+    }
+}
+
+private actor RecordingNotificationScheduler: NotificationScheduling {
+    private(set) var requests = [TimerNotificationRequest]()
+    private(set) var removed = [String]()
+    var operationCount: Int { requests.count + removed.count }
+
+    private let granted: Bool
+    init(granted: Bool = true) { self.granted = granted }
+
+    func requestAuthorization() async throws -> Bool { granted }
+    func schedule(identifier: String, at deadline: Date, title: String) async throws {
+        requests.append(TimerNotificationRequest(identifier: identifier, deadline: deadline, title: title))
+    }
+    func remove(identifier: String) async { removed.append(identifier) }
 }

@@ -12,6 +12,7 @@ final class AppLifecycleController: NSObject, NSApplicationDelegate {
         try model.recoverInterruptedDeliveriesOnce()
         try model.loadPersistedState()
         didStart = true
+        model.deliverAllPendingInBackground()
     }
 
     func snapshotForTermination(model: AppModel) throws {
@@ -20,6 +21,10 @@ final class AppLifecycleController: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         guard let model else { return }
-        try? snapshotForTermination(model: model)
+        do {
+            try snapshotForTermination(model: model)
+        } catch {
+            model.record(error)
+        }
     }
 }

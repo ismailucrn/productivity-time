@@ -24,13 +24,14 @@ final class NotesLineFormatterTests: XCTestCase {
 
         let line = formatter.format(session)
 
-        XCTAssertEqual(line.marker, "PT:a0b1c2d3-e4f5-4678-9abc-def012345678")
+        XCTAssertEqual(line.marker, line.plainText)
         XCTAssertTrue(line.plainText.contains("Read \\\"Swift\\\" <>&"))
         XCTAssertTrue(line.plainText.contains("01:01:01"))
         XCTAssertTrue(line.plainText.contains("stopwatch"))
         XCTAssertTrue(line.plainText.contains("2024-01-01 03:00:00"))
+        XCTAssertFalse(line.plainText.contains("PT:"))
+        XCTAssertFalse(line.html.contains("PT:"))
         XCTAssertTrue(line.html.contains("&lt;&gt;&amp;"))
         XCTAssertFalse(line.html.contains("<>&"))
-        XCTAssertTrue(line.html.contains("PT:a0b1c2d3-e4f5-4678-9abc-def012345678"))
     }
 }

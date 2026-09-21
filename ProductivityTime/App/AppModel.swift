@@ -44,6 +44,41 @@ enum AppModelError: Error, Equatable {
     case noActiveSession
 }
 
+@MainActor
+protocol AppPreferences: AnyObject {
+    var notesTargetName: String { get set }
+    var notionDataSourceID: String { get set }
+}
+
+@MainActor
+final class UserDefaultsAppPreferences: AppPreferences {
+    static let defaultNotesTargetName = "Productivity Time Sessions"
+
+    private enum Key {
+        static let notesTargetName = "notesTargetName"
+        static let notionDataSourceID = "notionDataSourceID"
+    }
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    var notesTargetName: String {
+        get {
+            let trimmed = defaults.string(forKey: Key.notesTargetName)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? Self.defaultNotesTargetName : trimmed
+        }
+        set { defaults.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Key.notesTargetName) }
+    }
+
+    var notionDataSourceID: String {
+        get { defaults.string(forKey: Key.notionDataSourceID)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
+        set { defaults.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: Key.notionDataSourceID) }
+    }
+}
+
 struct ActiveSessionPresentation: Equatable, Identifiable {
     let id: UUID
     let activityID: UUID
@@ -62,15 +97,26 @@ final class AppModel: ObservableObject {
     @Published private(set) var restorableSession: ActiveSessionSnapshot?
     @Published private(set) var lastError: String?
     @Published private(set) var selectedActivityID: UUID?
+    @Published private(set) var deliveryRecordsBySessionID: [UUID: [DeliveryDestination: DestinationDelivery]] = [:]
+    @Published private(set) var notesTargetName: String
+    @Published private(set) var notionDataSourceID: String
+    @Published private(set) var isNotionTokenConfigured = false
 
     private let repository: any SessionRepository
     private let clock: any MonotonicClock
     private let refreshScheduler: any RefreshScheduling
+    private let deliveryCoordinator: any DeliveryCoordinating
+    private let notificationScheduler: any NotificationScheduling
+    private let preferences: any AppPreferences
+    private let credentialStore: any NotionCredentialStore
+    private let notesSink: any NotesSessionSink
+    private let notionSink: any NotionSessionSink
     private var runtime: ActiveRuntime?
     private var counterVisible = true
     private var counterTask: (any RefreshTask)?
     private var deadlineTask: (any RefreshTask)?
     private var didRecoverInterruptedDeliveries = false
+    private var notificationGeneration = 0
 
     init() {
         do {
@@ -80,17 +126,73 @@ final class AppModel: ObservableObject {
         }
         clock = ContinuousMonotonicClock()
         refreshScheduler = TaskRefreshScheduler()
+        let preferences = UserDefaultsAppPreferences()
+        self.preferences = preferences
+        notesTargetName = preferences.notesTargetName
+        notionDataSourceID = preferences.notionDataSourceID
+        let credentials = KeychainNotionCredentialStore()
+        credentialStore = credentials
+        notesSink = AppleNotesAdapter()
+        notionSink = NotionAPIClient(credentials: credentials)
+        notificationScheduler = UserNotificationScheduler()
+        deliveryCoordinator = DeliveryCoordinator(
+            repository: repository,
+            notes: notesSink,
+            notion: notionSink,
+            notesTarget: { NotesTarget(noteName: preferences.notesTargetName) },
+            notionConfiguration: { NotionConfiguration(dataSourceID: preferences.notionDataSourceID) }
+        )
+        isNotionTokenConfigured = Self.hasStoredToken(credentials)
     }
 
-    init(repository: any SessionRepository, clock: any MonotonicClock, refreshScheduler: any RefreshScheduling) {
+    init(
+        repository: any SessionRepository,
+        clock: any MonotonicClock,
+        refreshScheduler: any RefreshScheduling,
+        deliveryCoordinator: (any DeliveryCoordinating)? = nil,
+        notificationScheduler: any NotificationScheduling = UserNotificationScheduler(),
+        preferences: any AppPreferences = UserDefaultsAppPreferences(),
+        credentialStore: any NotionCredentialStore = KeychainNotionCredentialStore(),
+        notesSink: any NotesSessionSink = AppleNotesAdapter(),
+        notionSink: any NotionSessionSink = NotionAPIClient()
+    ) {
         self.repository = repository
         self.clock = clock
         self.refreshScheduler = refreshScheduler
+        self.preferences = preferences
+        self.credentialStore = credentialStore
+        self.notesSink = notesSink
+        self.notionSink = notionSink
+        self.notificationScheduler = notificationScheduler
+        self.deliveryCoordinator = deliveryCoordinator ?? DeliveryCoordinator(
+            repository: repository,
+            notes: notesSink,
+            notion: notionSink,
+            notesTarget: { NotesTarget(noteName: preferences.notesTargetName) },
+            notionConfiguration: { NotionConfiguration(dataSourceID: preferences.notionDataSourceID) }
+        )
+        notesTargetName = preferences.notesTargetName
+        notionDataSourceID = preferences.notionDataSourceID
+        isNotionTokenConfigured = Self.hasStoredToken(credentialStore)
     }
 
     static func applicationModel() -> AppModel {
         do {
-            return try AppModel(repository: SwiftDataStore(container: SwiftDataStore.makeApplicationContainer()), clock: ContinuousMonotonicClock(), refreshScheduler: TaskRefreshScheduler())
+            let repository = try SwiftDataStore(container: SwiftDataStore.makeApplicationContainer())
+            let preferences = UserDefaultsAppPreferences()
+            let credentials = KeychainNotionCredentialStore()
+            let notes = AppleNotesAdapter()
+            let notion = NotionAPIClient(credentials: credentials)
+            return AppModel(
+                repository: repository,
+                clock: ContinuousMonotonicClock(),
+                refreshScheduler: TaskRefreshScheduler(),
+                notificationScheduler: UserNotificationScheduler(),
+                preferences: preferences,
+                credentialStore: credentials,
+                notesSink: notes,
+                notionSink: notion
+            )
         } catch {
             fatalError("Unable to initialize the local session store: \(error)")
         }
@@ -105,7 +207,17 @@ final class AppModel: ObservableObject {
     func loadPersistedState() throws {
         activities = try repository.activities()
         completedSessions = try repository.completedSessions()
+        try refreshDeliveryRecords()
         restorableSession = try repository.loadActive()
+    }
+
+    /// Lifecycle calls this exactly once after interrupted-delivery recovery and state loading.
+    func deliverAllPendingInBackground() {
+        Task { [weak self] in
+            guard let self else { return }
+            _ = await self.deliveryCoordinator.deliverAllPending()
+            self.refreshDeliveryStateAfterDelivery()
+        }
     }
 
     func createActivity(named rawName: String) throws -> Activity {
@@ -153,12 +265,11 @@ final class AppModel: ObservableObject {
             try repository.saveActive(nil)
             return
         }
-        try apply(runtime.engine.pause())
-        guard let snapshot = makeSnapshot() else {
-            try repository.saveActive(nil)
-            return
-        }
+        // Save the paused representation before cancelling in-memory work so a
+        // graceful termination never loses a running session between commands.
+        guard let snapshot = makeSnapshot() else { return }
         try repository.saveActive(snapshot)
+        try apply(runtime.engine.pause())
     }
 
     func resumeRestoredSession() throws {
@@ -179,7 +290,78 @@ final class AppModel: ObservableObject {
         try repository.saveActive(nil)
     }
 
-    func refreshHistory() throws { completedSessions = try repository.completedSessions() }
+    func refreshHistory() throws {
+        completedSessions = try repository.completedSessions()
+        try refreshDeliveryRecords()
+    }
+
+    func deliveryRecord(for sessionID: UUID, destination: DeliveryDestination) -> DestinationDelivery? {
+        deliveryRecordsBySessionID[sessionID]?[destination]
+    }
+
+    func retryDelivery(sessionID: UUID, destination: DeliveryDestination) {
+        guard deliveryRecord(for: sessionID, destination: destination)?.phase == .failed else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            _ = await self.deliveryCoordinator.retry(sessionID: sessionID, destination: destination)
+            self.refreshDeliveryStateAfterDelivery()
+        }
+    }
+
+    func updateNotesTarget(_ rawValue: String) {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = trimmed.isEmpty ? UserDefaultsAppPreferences.defaultNotesTargetName : trimmed
+        preferences.notesTargetName = value
+        notesTargetName = value
+    }
+
+    func updateNotionDataSourceID(_ rawValue: String) {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        preferences.notionDataSourceID = value
+        notionDataSourceID = value
+    }
+
+    func updateNotionToken(_ rawValue: String) throws {
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            if value.isEmpty {
+                try credentialStore.removeToken()
+                isNotionTokenConfigured = false
+            } else {
+                try credentialStore.writeToken(Data(value.utf8))
+                isNotionTokenConfigured = true
+            }
+        } catch {
+            lastError = "Notion token could not be updated. Check Keychain access and try again."
+            throw error
+        }
+    }
+
+    func testNotesConnection() {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.notesSink.testConnection(to: NotesTarget(noteName: self.notesTargetName))
+                _ = await self.deliveryCoordinator.deliverPending(destination: .appleNotes)
+                self.refreshDeliveryStateAfterDelivery()
+            } catch {
+                self.recordIntegrationError(for: .appleNotes)
+            }
+        }
+    }
+
+    func testNotionConnection() {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.notionSink.testConnection(configuration: NotionConfiguration(dataSourceID: self.notionDataSourceID))
+                _ = await self.deliveryCoordinator.deliverPending(destination: .notion)
+                self.refreshDeliveryStateAfterDelivery()
+            } catch {
+                self.recordIntegrationError(for: .notion)
+            }
+        }
+    }
 
     private func start(for activityID: UUID, mode: TimerMode) throws {
         guard runtime == nil else { throw AppModelError.activeSessionAlreadyExists }
@@ -199,11 +381,12 @@ final class AppModel: ObservableObject {
         case .stateChanged:
             publishRuntime()
             rescheduleTasks()
+            updateTimerNotificationForCurrentState()
         case let .completion(completion):
             do {
                 try persist(completion: completion)
             } catch {
-                clearRuntime()
+                clearRuntime(shouldRemoveTimerNotification: false)
                 record(error)
                 throw error
             }
@@ -220,6 +403,8 @@ final class AppModel: ObservableObject {
         let session = CompletedSession(id: UUID(), activityID: runtime.activityID, titleSnapshot: runtime.title, mode: runtime.engine.mode == .stopwatch ? .stopwatch : .timer, duration: completion.duration, completedAt: completion.completedAt, deliveryState: .pending)
         try repository.saveCompleted(session)
         completedSessions = try repository.completedSessions()
+        try refreshDeliveryRecords()
+        deliverAllPendingInBackground()
     }
 
     private func makeSnapshot() -> ActiveSessionSnapshot? {
@@ -245,7 +430,10 @@ final class AppModel: ObservableObject {
         displayedDuration = runtime.engine.displayDuration
     }
 
-    private func clearRuntime() {
+    private func clearRuntime(shouldRemoveTimerNotification: Bool = true) {
+        if shouldRemoveTimerNotification, let runtime, runtime.engine.mode != .stopwatch {
+            removeTimerNotification(identifier: runtime.id)
+        }
         counterTask?.cancel()
         deadlineTask?.cancel()
         counterTask = nil
@@ -282,6 +470,95 @@ final class AppModel: ObservableObject {
             try apply(runtime.engine.completeIfDue())
         } catch {
             record(error)
+        }
+    }
+
+    // Used by deterministic composition tests; production timer completion always enters here via the deadline task.
+    func completeTimerIfDueForTesting() throws {
+        guard let runtime else { throw AppModelError.noActiveSession }
+        try apply(runtime.engine.completeIfDue())
+    }
+
+    private func updateTimerNotificationForCurrentState() {
+        guard let runtime, runtime.engine.mode != .stopwatch else { return }
+        switch runtime.engine.state {
+        case .running:
+            scheduleTimerNotification(for: runtime)
+        case .paused, .idle:
+            removeTimerNotification(identifier: runtime.id)
+        }
+    }
+
+    private func scheduleTimerNotification(for runtime: ActiveRuntime) {
+        notificationGeneration += 1
+        let generation = notificationGeneration
+        let identifier = runtime.id.uuidString
+        let deadline = clock.date.addingTimeInterval(runtime.engine.displayDuration.timeInterval)
+        let title = runtime.title
+        let scheduler = notificationScheduler
+        Task { [weak self] in
+            do {
+                guard try await scheduler.requestAuthorization() else {
+                    self?.recordNotificationError()
+                    return
+                }
+                guard self?.isCurrentRunningTimer(id: runtime.id, generation: generation) == true else { return }
+                try await scheduler.schedule(identifier: identifier, at: deadline, title: title)
+                if self?.isCurrentRunningTimer(id: runtime.id, generation: generation) != true {
+                    await scheduler.remove(identifier: identifier)
+                }
+            } catch {
+                self?.recordNotificationError()
+            }
+        }
+    }
+
+    private func removeTimerNotification(identifier: UUID) {
+        notificationGeneration += 1
+        let scheduler = notificationScheduler
+        Task { await scheduler.remove(identifier: identifier.uuidString) }
+    }
+
+    private func isCurrentRunningTimer(id: UUID, generation: Int) -> Bool {
+        notificationGeneration == generation && runtime?.id == id && runtime?.engine.state == .running && runtime?.engine.mode != .stopwatch
+    }
+
+    private func refreshDeliveryRecords() throws {
+        var values = [UUID: [DeliveryDestination: DestinationDelivery]]()
+        for session in completedSessions {
+            let records = try repository.deliveryRecords(for: session.id)
+            values[session.id] = Dictionary(uniqueKeysWithValues: records.map { ($0.destination, $0) })
+        }
+        deliveryRecordsBySessionID = values
+    }
+
+    private func refreshDeliveryStateAfterDelivery() {
+        do {
+            completedSessions = try repository.completedSessions()
+            try refreshDeliveryRecords()
+        } catch {
+            record(error)
+        }
+    }
+
+    private func recordNotificationError() {
+        lastError = "Timer notification could not be scheduled. Enable notifications in System Settings and try again."
+    }
+
+    private func recordIntegrationError(for destination: DeliveryDestination) {
+        switch destination {
+        case .appleNotes:
+            lastError = "Apple Notes connection failed. Check Automation permission and the target note, then try again."
+        case .notion:
+            lastError = "Notion connection failed. Check the token, data source, and schema, then try again."
+        }
+    }
+
+    private static func hasStoredToken(_ credentials: any NotionCredentialStore) -> Bool {
+        do {
+            return try credentials.readToken()?.isEmpty == false
+        } catch {
+            return false
         }
     }
 }

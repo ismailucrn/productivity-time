@@ -9,7 +9,13 @@ struct ProductivityTimeApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(model)
-                .task { try? lifecycle.start(model: model) }
+                .task {
+                    do {
+                        try lifecycle.start(model: model)
+                    } catch {
+                        model.record(error)
+                    }
+                }
         }
     }
 }
