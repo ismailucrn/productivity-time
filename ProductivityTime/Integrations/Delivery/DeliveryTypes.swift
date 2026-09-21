@@ -3,7 +3,17 @@ import Foundation
 enum DeliveryResult: Equatable, Sendable { case created, alreadyExists }
 
 enum DeliveryAttemptOutcome: Equatable, Sendable { case delivered, skipped, failed(String) }
-struct DeliveryAttemptResult: Equatable, Sendable { let sessionID: UUID; let destination: DeliveryDestination; let outcome: DeliveryAttemptOutcome }
+struct DeliveryAttemptResult: Equatable, Sendable { let sessionID: UUID?; let destination: DeliveryDestination; let outcome: DeliveryAttemptOutcome }
+
+enum DeliveryAttemptFailureCategory: String, Sendable {
+    case pendingFetch
+    case retry
+    case claim
+    case sessionLoad
+    case markSuccess
+    case markFailure
+    case unknown
+}
 
 enum DeliveryError: Error, Equatable, Sendable {
     case authorization, configuration, schema, permissionDenied, notesUnavailable, notionUnavailable, network
