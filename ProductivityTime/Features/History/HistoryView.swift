@@ -37,7 +37,7 @@ struct HistoryView: View {
         let record = model.deliveryRecord(for: session.id, destination: destination)
         let presentation = DeliveryStatusPresentation.make(from: record)
         HStack {
-            Label(presentation.text, systemImage: presentation.systemImage)
+            Label("\(name): \(presentation.text)", systemImage: presentation.systemImage)
                 .foregroundStyle(statusColor(for: presentation.role))
                 .accessibilityLabel("\(name) delivery status: \(presentation.text)")
                 .accessibilityIdentifier("history.status.\(destination.rawValue).\(session.id.uuidString)")
