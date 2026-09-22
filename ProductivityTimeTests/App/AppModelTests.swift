@@ -5,6 +5,40 @@ import XCTest
 
 @MainActor
 final class AppModelTests: XCTestCase {
+    func testRenameRefreshesActivitiesAndPreservesSelection() throws {
+        let repository = InMemorySessionRepository()
+        let model = AppModel(repository: repository, clock: TestClock(date: .now), refreshScheduler: TestRefreshScheduler())
+        let activity = try model.createActivity(named: "Writing")
+        model.selectActivity(activity.id)
+
+        try model.renameActivity(activity.id, to: "Research")
+
+        XCTAssertEqual(model.activities.first?.name.value, "Research")
+        XCTAssertEqual(model.selectedActivityID, activity.id)
+    }
+
+    func testDeleteClearsSelectionAndRejectsTheActiveActivity() throws {
+        let repository = InMemorySessionRepository()
+        let model = AppModel(repository: repository, clock: TestClock(date: .now), refreshScheduler: TestRefreshScheduler())
+        let first = try model.createActivity(named: "Writing")
+        let second = try model.createActivity(named: "Reading")
+        model.selectActivity(first.id)
+
+        try model.deleteActivity(first.id)
+
+        XCTAssertNil(model.selectedActivityID)
+        XCTAssertEqual(model.activities.map(\.id), [second.id])
+
+        model.selectActivity(second.id)
+        try model.startStopwatch(for: second.id)
+
+        XCTAssertThrowsError(try model.deleteActivity(second.id)) { error in
+            XCTAssertEqual(error as? SessionRepositoryError, .activityHasActiveSession)
+        }
+        XCTAssertEqual(model.activities.map(\.id), [second.id])
+        XCTAssertEqual(model.selectedActivityID, second.id)
+    }
+
     func testStartingSecondActivityWhileOneIsActiveIsRejected() throws {
         let repository = InMemorySessionRepository()
         let clock = TestClock(date: Date(timeIntervalSince1970: 1_000))
@@ -478,8 +512,27 @@ private final class InMemorySessionRepository: SessionRepository {
         return activity
     }
 
-    func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity { fatalError("unused") }
-    func deleteActivity(_ id: UUID) throws { fatalError("unused") }
+    func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity {
+        guard let index = storedActivities.firstIndex(where: { $0.id == id }) else {
+            throw SessionRepositoryError.activityNotFound
+        }
+        guard !storedActivities.contains(where: { $0.id != id && $0.name == name }) else {
+            throw SessionRepositoryError.activityNameConflict
+        }
+        let activity = Activity(id: id, name: name, createdAt: storedActivities[index].createdAt)
+        storedActivities[index] = activity
+        return activity
+    }
+
+    func deleteActivity(_ id: UUID) throws {
+        guard let index = storedActivities.firstIndex(where: { $0.id == id }) else {
+            throw SessionRepositoryError.activityNotFound
+        }
+        guard activeSnapshot?.activityID != id else {
+            throw SessionRepositoryError.activityHasActiveSession
+        }
+        storedActivities.remove(at: index)
+    }
     func activities() throws -> [Activity] { storedActivities }
     func saveCompleted(_ session: CompletedSession) throws {
         guard !shouldFailSavingCompletedSession else { throw TestRepositoryError.persistenceFailed }

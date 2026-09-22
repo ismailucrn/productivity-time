@@ -6,16 +6,26 @@ struct ProductivityTimeApp: App {
     @NSApplicationDelegateAdaptor(AppLifecycleController.self) private var lifecycle
 
     var body: some Scene {
-        WindowGroup {
+        Window("Productivity Time", id: "main") {
             ContentView()
                 .environmentObject(model)
-                .task {
-                    do {
-                        try lifecycle.start(model: model)
-                    } catch {
-                        model.record(error)
-                    }
-                }
+                .task { startLifecycleIfNeeded() }
+        }
+        .commands {
+            CommandGroup(replacing: .newItem) { }
+        }
+
+        Settings {
+            SettingsView()
+                .environmentObject(model)
+        }
+    }
+
+    private func startLifecycleIfNeeded() {
+        do {
+            try lifecycle.start(model: model)
+        } catch {
+            model.record(error)
         }
     }
 }

@@ -226,6 +226,22 @@ final class AppModel: ObservableObject {
         return activity
     }
 
+    func renameActivity(_ id: UUID, to rawName: String) throws {
+        _ = try repository.renameActivity(id, to: ActivityName(rawName))
+        activities = try repository.activities()
+    }
+
+    func deleteActivity(_ id: UUID) throws {
+        guard activeSession?.activityID != id else {
+            throw SessionRepositoryError.activityHasActiveSession
+        }
+        try repository.deleteActivity(id)
+        activities = try repository.activities()
+        if selectedActivityID == id {
+            selectedActivityID = nil
+        }
+    }
+
     func selectActivity(_ activityID: UUID?) {
         selectedActivityID = activityID
     }

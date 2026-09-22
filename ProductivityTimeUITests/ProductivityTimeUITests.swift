@@ -24,13 +24,36 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["activity.add"].exists)
         XCTAssertTrue(app.buttons["timer.primary"].exists)
         XCTAssertTrue(app.buttons["history.show"].exists)
-        XCTAssertTrue(app.buttons["settings.show"].exists)
         addActivity(named: "Controls \(UUID().uuidString)", in: app)
         XCTAssertTrue(app.segmentedControls["timer.mode"].exists)
         app.buttons["timer.primary"].click()
         XCTAssertTrue(app.buttons["timer.complete"].exists)
         app.buttons["timer.discard"].click()
         app.buttons["history.show"].click()
+    }
+
+    func testMainToolbarKeepsHistoryAndLeavesSettingsToTheAppMenu() {
+        let app = XCUIApplication()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+
+        XCTAssertTrue(app.buttons["history.show"].exists)
+        XCTAssertFalse(app.buttons["settings.show"].exists)
+    }
+
+    func testActivityContextMenuOffersRenameAndDelete() {
+        let app = XCUIApplication()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+        let name = "Manage \(UUID().uuidString)"
+        addActivity(named: name, in: app)
+
+        let activity = app.outlines["Sidebar"].staticTexts[name]
+        XCTAssertTrue(activity.waitForExistence(timeout: 5))
+        activity.rightClick()
+
+        XCTAssertTrue(app.menuItems["Rename"].exists)
+        XCTAssertTrue(app.menuItems["Delete"].exists)
     }
 
     func testTimerPanelExplainsEmptyStateAndContextualActions() {
