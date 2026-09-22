@@ -10,35 +10,66 @@ struct TimerPanelView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            HStack {
-                Button("Stopwatch") { isTimerMode = false }
-                    .accessibilityIdentifier("timer.mode.stopwatch")
-                    .buttonStyle(.borderedProminent)
-                Button("Timer") { isTimerMode = true }
-                    .accessibilityIdentifier("timer.mode.timer")
-            }
-            if isTimerMode {
-                Stepper("Duration: \(minutes) minutes", value: $minutes, in: 1...1_440)
-                    .accessibilityIdentifier("timer.duration")
-                HStack {
-                    ForEach([5, 25, 50], id: \.self) { preset in
-                        Button("\(preset)m") { minutes = preset }
+            if selectedActivity == nil && model.activeSession == nil {
+                ContentUnavailableView(
+                    "Choose an Activity",
+                    systemImage: "cursorarrow.click.2",
+                    description: Text("Select or add an activity in the sidebar to begin.")
+                )
+                .accessibilityIdentifier("timer.empty")
+            } else {
+                Text(model.activeSession?.title ?? selectedActivity?.name.value ?? "")
+                    .font(.title2.weight(.semibold))
+                Text(SessionPresentation.clockText(for: model.displayedDuration))
+                    .font(.system(size: 56, weight: .medium, design: .monospaced))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .accessibilityIdentifier("timer.duration.display")
+                if let activeSession = model.activeSession {
+                    Text(SessionPresentation.timerStateText(activeSession.state))
+                        .foregroundStyle(.secondary)
+                }
+
+                Picker("Mode", selection: $isTimerMode) {
+                    Text("Stopwatch").tag(false)
+                    Text("Timer").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("timer.mode")
+                .disabled(model.activeSession != nil)
+
+                if isTimerMode {
+                    Stepper("Duration: \(minutes) minutes", value: $minutes, in: 1...1_440)
+                        .accessibilityIdentifier("timer.duration")
+                        .disabled(model.activeSession != nil)
+                    HStack {
+                        ForEach([5, 25, 50], id: \.self) { preset in
+                            Button {
+                                minutes = preset
+                            } label: {
+                                Label("\(preset) minutes", systemImage: minutes == preset ? "checkmark.circle.fill" : "circle")
+                            }
+                            .accessibilityLabel(minutes == preset ? "\(preset) minutes, selected" : "\(preset) minutes")
+                            .disabled(model.activeSession != nil)
+                        }
                     }
                 }
             }
-            Text(durationText(model.displayedDuration))
-                .font(.system(size: 46, design: .monospaced))
-                .accessibilityIdentifier("timer.duration.display")
             HStack {
                 Button(primaryTitle) { primaryAction() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .accessibilityIdentifier("timer.primary")
                     .disabled(model.activeSession == nil && model.selectedActivityID == nil)
-                Button("Reset") { perform { try model.reset() } }
-                    .accessibilityIdentifier("timer.reset")
-                    .disabled(model.activeSession == nil)
-                Button("Cancel") { perform { try model.cancel() } }
-                    .accessibilityIdentifier("timer.cancel")
-                    .disabled(model.activeSession == nil)
+                if model.activeSession?.mode == .stopwatch {
+                    Button("Complete Session") { perform { try model.reset() } }
+                        .accessibilityIdentifier("timer.complete")
+                    Button("Discard", role: .destructive) { perform { try model.cancel() } }
+                        .accessibilityIdentifier("timer.discard")
+                } else if model.activeSession?.mode == .timer {
+                    Button("Cancel Timer", role: .destructive) { perform { try model.cancel() } }
+                        .accessibilityIdentifier("timer.cancel")
+                }
             }
             if let error = model.lastError {
                 Text(error)
@@ -48,8 +79,19 @@ struct TimerPanelView: View {
         }
         .padding(32)
         .background(WindowVisibilityAttachment(observer: windowVisibility))
-        .onAppear { windowVisibility.bind(model: model) }
+        .onAppear {
+            windowVisibility.bind(model: model)
+            synchronizeActiveSessionConfiguration()
+        }
+        .onChange(of: model.activeSession?.id) { _, _ in
+            synchronizeActiveSessionConfiguration()
+        }
         .onDisappear { windowVisibility.stop() }
+    }
+
+    private var selectedActivity: Activity? {
+        guard let selectedActivityID = model.selectedActivityID else { return nil }
+        return model.activities.first { $0.id == selectedActivityID }
     }
 
     private var primaryTitle: String {
@@ -83,9 +125,13 @@ struct TimerPanelView: View {
         }
     }
 
-    private func durationText(_ duration: Duration) -> String {
-        let total = max(0, Int(duration.timeInterval.rounded(.down)))
-        return String(format: "%02d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
+    private func synchronizeActiveSessionConfiguration() {
+        guard let activeSession = model.activeSession else { return }
+        isTimerMode = activeSession.mode == .timer
+        minutes = TimerPanelPresentation.configuredMinutes(
+            from: activeSession.configuredDuration,
+            fallback: minutes
+        )
     }
 }
 

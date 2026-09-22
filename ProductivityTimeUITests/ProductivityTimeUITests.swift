@@ -22,15 +22,31 @@ final class ProductivityTimeUITests: XCTestCase {
         discardRestorableSessionIfNeeded(in: app)
 
         XCTAssertTrue(app.buttons["activity.add"].exists)
-        XCTAssertTrue(app.buttons["timer.mode.stopwatch"].exists)
-        XCTAssertTrue(app.buttons["timer.mode.timer"].exists)
         XCTAssertTrue(app.buttons["timer.primary"].exists)
-        XCTAssertTrue(app.buttons["timer.reset"].exists)
-        XCTAssertTrue(app.buttons["timer.cancel"].exists)
         XCTAssertTrue(app.buttons["history.show"].exists)
         XCTAssertTrue(app.buttons["settings.show"].exists)
+        addActivity(named: "Controls \(UUID().uuidString)", in: app)
+        XCTAssertTrue(app.segmentedControls["timer.mode"].exists)
+        app.buttons["timer.primary"].click()
+        XCTAssertTrue(app.buttons["timer.complete"].exists)
+        app.buttons["timer.discard"].click()
         app.buttons["history.show"].click()
-        XCTAssertTrue(app.buttons["history.retry"].exists)
+    }
+
+    func testTimerPanelExplainsEmptyStateAndContextualActions() {
+        let app = XCUIApplication()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+
+        XCTAssertTrue(app.otherElements["timer.empty"].exists)
+        XCTAssertFalse(app.buttons["timer.primary"].isEnabled)
+
+        addActivity(named: "Writing \(UUID().uuidString)", in: app)
+        XCTAssertTrue(app.segmentedControls["timer.mode"].exists)
+        XCTAssertTrue(app.buttons["timer.primary"].isEnabled)
+        app.buttons["timer.primary"].click()
+        XCTAssertTrue(app.buttons["timer.complete"].exists)
+        XCTAssertTrue(app.buttons["timer.discard"].exists)
     }
 
     func testActivityCreationAndKeyboardFocus() {
@@ -50,7 +66,7 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["timer.primary"].label == "Pause")
         app.buttons["timer.primary"].click()
         XCTAssertTrue(app.buttons["timer.primary"].label == "Resume")
-        app.buttons["timer.reset"].click()
+        app.buttons["timer.complete"].click()
         app.buttons["history.show"].click()
         XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
     }
@@ -61,7 +77,7 @@ final class ProductivityTimeUITests: XCTestCase {
         discardRestorableSessionIfNeeded(in: app)
         let title = "Timer Cancel \(UUID().uuidString)"
         addActivity(named: title, in: app)
-        app.buttons["timer.mode.timer"].click()
+        app.segmentedControls["timer.mode"].buttons["Timer"].click()
         XCTAssertTrue(app.steppers["timer.duration"].exists)
         app.buttons["timer.primary"].click()
         app.buttons["timer.cancel"].click()
