@@ -42,4 +42,21 @@ final class SessionPresentationTests: XCTestCase {
         XCTAssertEqual(DeliveryStatusPresentation.make(from: nil).text, "Pending")
         XCTAssertFalse(DeliveryStatusPresentation.make(from: nil).canRetry)
     }
+
+    func testEveryDeliveryPhaseHasAReadableLabelAndRetryOnlyOnFailure() {
+        let id = UUID()
+        let values: [(DeliveryPhase, String, Bool)] = [
+            (.pending, "Pending", false),
+            (.delivering, "Delivering", false),
+            (.delivered, "Delivered", false),
+            (.failed, "Failed", true)
+        ]
+
+        for (phase, text, canRetry) in values {
+            let record = DestinationDelivery(sessionID: id, destination: .appleNotes, phase: phase, errorCategory: nil, retryNotBefore: nil)
+            let presentation = DeliveryStatusPresentation.make(from: record)
+            XCTAssertEqual(presentation.text, text)
+            XCTAssertEqual(presentation.canRetry, canRetry)
+        }
+    }
 }

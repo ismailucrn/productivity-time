@@ -108,6 +108,19 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts[title].waitForExistence(timeout: 1))
     }
 
+    func testMixedHistoryShowsIndependentStatusAndOnlyFailedRetry() {
+        let app = XCUIApplication()
+        app.launchArguments += ["--ui-test-fixture", "mixed-history"]
+        app.launch()
+        app.buttons["history.show"].click()
+        let id = "11111111-2222-3333-4444-555555555555"
+
+        XCTAssertEqual(app.descendants(matching: .any)["history.status.appleNotes.\(id)"].label, "Apple Notes delivery status: Delivered")
+        XCTAssertEqual(app.descendants(matching: .any)["history.status.notion.\(id)"].label, "Notion delivery status: Failed")
+        XCTAssertFalse(app.buttons["history.retry.appleNotes.\(id)"].exists)
+        XCTAssertTrue(app.buttons["history.retry.notion.\(id)"].exists)
+    }
+
     func testPausedSessionOffersRestoreThenDiscardAfterRelaunch() {
         let app = XCUIApplication()
         app.launch()

@@ -6,17 +6,28 @@ struct HistoryView: View {
     var body: some View {
         List(model.completedSessions) { session in
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(session.titleSnapshot)
-                    Spacer()
-                    Text(session.duration.timeInterval.formatted())
+                        .font(.headline)
+                    Text("\(SessionPresentation.modeText(session.mode)) · \(SessionPresentation.compactDurationText(for: session.duration))")
+                        .foregroundStyle(.secondary)
+                    Text(session.completedAt, format: .dateTime.day().month().year().hour().minute())
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 destinationRow(for: session, destination: .appleNotes, name: "Apple Notes")
                 destinationRow(for: session, destination: .notion, name: "Notion")
             }
         }
-        .overlay { if model.completedSessions.isEmpty { ContentUnavailableView("No completed sessions", systemImage: "clock") } }
+        .overlay {
+            if model.completedSessions.isEmpty {
+                ContentUnavailableView(
+                    "No Completed Sessions",
+                    systemImage: "clock",
+                    description: Text("Completed stopwatch and timer sessions will appear here.")
+                )
+            }
+        }
         .accessibilityIdentifier("history.list")
         .padding()
     }
@@ -24,28 +35,28 @@ struct HistoryView: View {
     @ViewBuilder
     private func destinationRow(for session: CompletedSession, destination: DeliveryDestination, name: String) -> some View {
         let record = model.deliveryRecord(for: session.id, destination: destination)
+        let presentation = DeliveryStatusPresentation.make(from: record)
         HStack {
-            Text("\(name): \(statusText(record))")
-                .accessibilityLabel("\(name) delivery status: \(statusText(record))")
+            Label(presentation.text, systemImage: presentation.systemImage)
+                .foregroundStyle(statusColor(for: presentation.role))
+                .accessibilityLabel("\(name) delivery status: \(presentation.text)")
+                .accessibilityIdentifier("history.status.\(destination.rawValue).\(session.id.uuidString)")
             Spacer()
-            if record?.phase == .failed {
-                Button("Retry \(name)") { model.retryDelivery(sessionID: session.id, destination: destination) }
+            if presentation.canRetry {
+                Button("Retry") { model.retryDelivery(sessionID: session.id, destination: destination) }
                     .accessibilityIdentifier("history.retry.\(destination.rawValue).\(session.id.uuidString)")
-                    .accessibilityLabel("Retry \(name) delivery. Previous delivery failed; this retries only \(name).")
-                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .accessibilityLabel("Retry \(name) delivery")
             }
         }
         .font(.caption)
-        .foregroundStyle(record?.phase == .failed ? .red : .secondary)
     }
 
-    private func statusText(_ record: DestinationDelivery?) -> String {
-        switch record?.phase {
-        case .pending: "Pending"
-        case .delivering: "Delivering"
-        case .delivered: "Delivered"
-        case .failed: "Failed"
-        case nil: "Pending"
+    private func statusColor(for role: DeliveryStatusRole) -> Color {
+        switch role {
+        case .neutral: .secondary
+        case .progress: .orange
+        case .success: .green
+        case .failure: .red
         }
     }
 }

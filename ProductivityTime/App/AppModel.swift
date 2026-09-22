@@ -177,6 +177,15 @@ final class AppModel: ObservableObject {
     }
 
     static func applicationModel() -> AppModel {
+#if DEBUG
+        do {
+            if let fixture = try UITestAppModelFactory.makeIfRequested() {
+                return fixture
+            }
+        } catch {
+            fatalError("Unable to initialize the UI test fixture: \(error)")
+        }
+#endif
         do {
             let repository = try SwiftDataStore(container: SwiftDataStore.makeApplicationContainer())
             let preferences = UserDefaultsAppPreferences()
