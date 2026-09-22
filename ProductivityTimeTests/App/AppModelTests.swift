@@ -493,6 +493,20 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.lastError, "Timer notification could not be scheduled. Enable notifications in System Settings and try again.")
     }
 
+    func testRefreshingNotificationAuthorizationPublishesDeniedState() async {
+        let notifications = RecordingNotificationScheduler(granted: false)
+        let model = AppModel(
+            repository: InMemorySessionRepository(),
+            clock: TestClock(date: .now),
+            refreshScheduler: TestRefreshScheduler(),
+            notificationScheduler: notifications
+        )
+
+        await model.refreshNotificationAuthorizationState().value
+
+        XCTAssertEqual(model.notificationAuthorizationState, .denied)
+    }
+
 }
 
 @MainActor
@@ -623,6 +637,7 @@ private actor RecordingNotificationScheduler: NotificationScheduling {
     private let granted: Bool
     init(granted: Bool = true) { self.granted = granted }
 
+    func authorizationState() async -> NotificationAuthorizationState { granted ? .authorized : .denied }
     func requestAuthorization() async throws -> Bool { granted }
     func schedule(identifier: String, at deadline: Date, title: String) async throws {
         requests.append(TimerNotificationRequest(identifier: identifier, deadline: deadline, title: title))

@@ -41,6 +41,19 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["settings.show"].exists)
     }
 
+    func testSettingsExposeNonSecretConnectionAndNotificationStatusIdentifiers() {
+        let app = XCUIApplication()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+
+        app.menuBars.menuBarItems["Productivity Time"].click()
+        app.menuItems["Settings…"].click()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settings.notes.status"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings.notion.status"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings.notifications.status"].exists)
+    }
+
     func testActivityContextMenuOffersRenameAndDelete() {
         let app = XCUIApplication()
         app.launch()

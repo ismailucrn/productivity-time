@@ -88,6 +88,8 @@ struct ActiveSessionPresentation: Equatable, Identifiable {
     let configuredDuration: Duration?
 }
 
+enum ConnectionTestState: Equatable { case idle, testing, succeeded, failed }
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var activeSession: ActiveSessionPresentation?
@@ -101,6 +103,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var notesTargetName: String
     @Published private(set) var notionDataSourceID: String
     @Published private(set) var isNotionTokenConfigured = false
+    @Published private(set) var notesConnectionTestState: ConnectionTestState = .idle
+    @Published private(set) var notionConnectionTestState: ConnectionTestState = .idle
+    @Published private(set) var notificationAuthorizationState: NotificationAuthorizationState = .notDetermined
 
     private let repository: any SessionRepository
     private let clock: any MonotonicClock
@@ -117,6 +122,10 @@ final class AppModel: ObservableObject {
     private var deadlineTask: (any RefreshTask)?
     private var didRecoverInterruptedDeliveries = false
     private var notificationGeneration = 0
+    private var notesConnectionTestTask: Task<Void, Never>?
+    private var notionConnectionTestTask: Task<Void, Never>?
+    private var notesConnectionTestGeneration = 0
+    private var notionConnectionTestGeneration = 0
 
     init() {
         do {
@@ -338,53 +347,99 @@ final class AppModel: ObservableObject {
         let value = trimmed.isEmpty ? UserDefaultsAppPreferences.defaultNotesTargetName : trimmed
         preferences.notesTargetName = value
         notesTargetName = value
+        resetNotesConnectionTestState()
     }
 
     func updateNotionDataSourceID(_ rawValue: String) {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         preferences.notionDataSourceID = value
         notionDataSourceID = value
+        resetNotionConnectionTestState()
     }
 
     func updateNotionToken(_ rawValue: String) throws {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
         do {
-            if value.isEmpty {
-                try credentialStore.removeToken()
-                isNotionTokenConfigured = false
-            } else {
-                try credentialStore.writeToken(Data(value.utf8))
-                isNotionTokenConfigured = true
-            }
+            try credentialStore.writeToken(Data(value.utf8))
+            isNotionTokenConfigured = true
+            resetNotionConnectionTestState()
         } catch {
             lastError = "Notion token could not be updated. Check Keychain access and try again."
             throw error
         }
     }
 
-    func testNotesConnection() {
-        Task { [weak self] in
+    func removeNotionToken() throws {
+        do {
+            try credentialStore.removeToken()
+            isNotionTokenConfigured = false
+            resetNotionConnectionTestState()
+        } catch {
+            lastError = "Notion token could not be updated. Check Keychain access and try again."
+            throw error
+        }
+    }
+
+    func testNotesConnection() -> Task<Void, Never> {
+        if let notesConnectionTestTask, notesConnectionTestState == .testing {
+            return notesConnectionTestTask
+        }
+        notesConnectionTestState = .testing
+        notesConnectionTestGeneration += 1
+        let generation = notesConnectionTestGeneration
+        let task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await self.notesSink.testConnection(to: NotesTarget(noteName: self.notesTargetName))
                 _ = await self.deliveryCoordinator.deliverPending(destination: .appleNotes)
                 self.refreshDeliveryStateAfterDelivery()
+                guard self.notesConnectionTestGeneration == generation else { return }
+                self.notesConnectionTestState = .succeeded
+                self.notesConnectionTestTask = nil
             } catch {
+                guard self.notesConnectionTestGeneration == generation else { return }
+                self.notesConnectionTestState = .failed
                 self.recordIntegrationError(for: .appleNotes)
+                self.notesConnectionTestTask = nil
             }
         }
+        notesConnectionTestTask = task
+        return task
     }
 
-    func testNotionConnection() {
-        Task { [weak self] in
+    func testNotionConnection() -> Task<Void, Never> {
+        if let notionConnectionTestTask, notionConnectionTestState == .testing {
+            return notionConnectionTestTask
+        }
+        notionConnectionTestState = .testing
+        notionConnectionTestGeneration += 1
+        let generation = notionConnectionTestGeneration
+        let task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await self.notionSink.testConnection(configuration: NotionConfiguration(dataSourceID: self.notionDataSourceID))
                 _ = await self.deliveryCoordinator.deliverPending(destination: .notion)
                 self.refreshDeliveryStateAfterDelivery()
+                guard self.notionConnectionTestGeneration == generation else { return }
+                self.notionConnectionTestState = .succeeded
+                self.notionConnectionTestTask = nil
             } catch {
+                guard self.notionConnectionTestGeneration == generation else { return }
+                self.notionConnectionTestState = .failed
                 self.recordIntegrationError(for: .notion)
+                self.notionConnectionTestTask = nil
             }
+        }
+        notionConnectionTestTask = task
+        return task
+    }
+
+    func refreshNotificationAuthorizationState() -> Task<Void, Never> {
+        let scheduler = notificationScheduler
+        return Task { @MainActor [weak self] in
+            let state = await scheduler.authorizationState()
+            self?.notificationAuthorizationState = state
         }
     }
 
@@ -523,7 +578,9 @@ final class AppModel: ObservableObject {
         let scheduler = notificationScheduler
         Task { [weak self] in
             do {
-                guard try await scheduler.requestAuthorization() else {
+                let isAuthorized = try await scheduler.requestAuthorization()
+                self?.notificationAuthorizationState = isAuthorized ? .authorized : .denied
+                guard isAuthorized else {
                     self?.recordNotificationError()
                     return
                 }
@@ -577,6 +634,18 @@ final class AppModel: ObservableObject {
         case .notion:
             lastError = "Notion connection failed. Check the token, data source, and schema, then try again."
         }
+    }
+
+    private func resetNotesConnectionTestState() {
+        notesConnectionTestGeneration += 1
+        notesConnectionTestState = .idle
+        notesConnectionTestTask = nil
+    }
+
+    private func resetNotionConnectionTestState() {
+        notionConnectionTestGeneration += 1
+        notionConnectionTestState = .idle
+        notionConnectionTestTask = nil
     }
 
     private static func hasStoredToken(_ credentials: any NotionCredentialStore) -> Bool {

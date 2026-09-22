@@ -72,10 +72,10 @@ final class IntegrationAdapterTests: XCTestCase {
     }
 
     func testNotificationCenterBoundaryForwardsExactRequestAndCancellation() async throws {
-        let center = FakeNotificationCenter(granted: true); let scheduler = UserNotificationScheduler(center: center); let deadline = Date(timeIntervalSince1970: 555)
-        let granted = try await scheduler.requestAuthorization(); try await scheduler.schedule(identifier: "timer.1", at: deadline, title: "Writing"); await scheduler.remove(identifier: "timer.1")
+        let center = FakeNotificationCenter(granted: true, authorizationState: .denied); let scheduler = UserNotificationScheduler(center: center); let deadline = Date(timeIntervalSince1970: 555)
+        let authorizationState = await scheduler.authorizationState(); let granted = try await scheduler.requestAuthorization(); try await scheduler.schedule(identifier: "timer.1", at: deadline, title: "Writing"); await scheduler.remove(identifier: "timer.1")
         let requests = await center.requests; let removed = await center.removed
-        XCTAssertTrue(granted); XCTAssertEqual(requests, [TimerNotificationRequest(identifier: "timer.1", deadline: deadline, title: "Writing")]); XCTAssertEqual(removed, ["timer.1"])
+        XCTAssertEqual(authorizationState, .denied); XCTAssertTrue(granted); XCTAssertEqual(requests, [TimerNotificationRequest(identifier: "timer.1", deadline: deadline, title: "Writing")]); XCTAssertEqual(removed, ["timer.1"])
     }
 
     func testNotionCredentialReadFailuresAreSanitizedBeforeAnyRequest() async {
@@ -123,4 +123,4 @@ private final class FakeKeychain: KeychainSecurityClient, @unchecked Sendable {
     init(read: Result<Data?, KeychainStatus> = .success(Data("test".utf8)), update: KeychainStatus, add: KeychainStatus, delete: KeychainStatus = .success) { readResult = read; updateResult = update; addResult = add; deleteResult = delete }
     func read(service: String, account: String) -> Result<Data?, KeychainStatus> { readResult }; func update(service: String, account: String, token: Data) -> KeychainStatus { updateCalls += 1; return updateResult }; func add(service: String, account: String, token: Data, accessibility: CFString) -> KeychainStatus { addCalls += 1; return addResult }; func delete(service: String, account: String) -> KeychainStatus { deleteCalls += 1; return deleteResult }
 }
-private actor FakeNotificationCenter: NotificationCenterClient { let granted: Bool; private(set) var requests = [TimerNotificationRequest](); private(set) var removed = [String](); init(granted: Bool) { self.granted = granted }; func requestAuthorization() async throws -> Bool { granted }; func add(_ request: TimerNotificationRequest) async throws { requests.append(request) }; func remove(identifiers: [String]) async { removed += identifiers } }
+private actor FakeNotificationCenter: NotificationCenterClient { let granted: Bool; let state: NotificationAuthorizationState; private(set) var requests = [TimerNotificationRequest](); private(set) var removed = [String](); init(granted: Bool, authorizationState: NotificationAuthorizationState = .notDetermined) { self.granted = granted; state = authorizationState }; func authorizationState() async -> NotificationAuthorizationState { state }; func requestAuthorization() async throws -> Bool { granted }; func add(_ request: TimerNotificationRequest) async throws { requests.append(request) }; func remove(identifiers: [String]) async { removed += identifiers } }

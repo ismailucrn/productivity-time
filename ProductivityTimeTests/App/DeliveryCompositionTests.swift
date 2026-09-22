@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class DeliveryCompositionTests: XCTestCase {
-    func testSettingsPersistTrimmedNonSecretConfigurationAndClearTokenInputThroughCredentialStore() throws {
+    func testEmptyTokenInputPreservesStoredCredentialUntilExplicitRemoval() throws {
         let preferences = MemoryPreferences(notesTargetName: "  Notes  ", notionDataSourceID: "  source  ")
         let credentials = MemoryCredentials()
         let model = AppModel(
@@ -26,9 +26,84 @@ final class DeliveryCompositionTests: XCTestCase {
         XCTAssertFalse(String(describing: model.isNotionTokenConfigured).contains("test-token"))
         XCTAssertEqual(credentials.writeCount, 1)
 
-        try model.updateNotionToken("")
+        try model.updateNotionToken("   ")
+        XCTAssertTrue(model.isNotionTokenConfigured)
+        XCTAssertEqual(credentials.writeCount, 1)
+        XCTAssertEqual(credentials.removeCount, 0)
+
+        try model.updateNotionToken("replacement-token")
+        XCTAssertEqual(credentials.writeCount, 2)
+        try model.removeNotionToken()
         XCTAssertFalse(model.isNotionTokenConfigured)
         XCTAssertEqual(credentials.removeCount, 1)
+    }
+
+    func testNotesConnectionPublishesProgressThenSuccess() async throws {
+        let notes = SuspendedNotesSink()
+        let model = AppModel(
+            repository: CompositionRepository(),
+            clock: TestClock(date: .now),
+            refreshScheduler: CompositionRefreshScheduler(),
+            deliveryCoordinator: CompositionCoordinator(),
+            preferences: MemoryPreferences(),
+            credentialStore: MemoryCredentials(),
+            notesSink: notes,
+            notionSink: SuccessfulNotionSink()
+        )
+
+        let operation = model.testNotesConnection()
+        await notes.waitUntilTestStarted()
+        XCTAssertEqual(model.notesConnectionTestState, .testing)
+
+        await notes.finishSuccessfully()
+        await operation.value
+        XCTAssertEqual(model.notesConnectionTestState, .succeeded)
+    }
+
+    func testNotionConnectionFailurePublishesOnlySanitizedFailureState() async throws {
+        let notion = FailingNotionSink(error: DeliveryError.authorization)
+        let model = AppModel(
+            repository: CompositionRepository(),
+            clock: TestClock(date: .now),
+            refreshScheduler: CompositionRefreshScheduler(),
+            deliveryCoordinator: CompositionCoordinator(),
+            preferences: MemoryPreferences(),
+            credentialStore: MemoryCredentials(),
+            notesSink: SuccessfulNotesSink(),
+            notionSink: notion
+        )
+
+        let operation = model.testNotionConnection()
+        await operation.value
+
+        XCTAssertEqual(model.notionConnectionTestState, .failed)
+        XCTAssertFalse(model.lastError?.contains("secret") == true)
+    }
+
+    func testRepeatedConnectionClicksShareOneOperationAndOneDeliveryAttempt() async throws {
+        let notes = SuspendedNotesSink()
+        let coordinator = CompositionCoordinator()
+        let model = AppModel(
+            repository: CompositionRepository(),
+            clock: TestClock(date: .now),
+            refreshScheduler: CompositionRefreshScheduler(),
+            deliveryCoordinator: coordinator,
+            preferences: MemoryPreferences(),
+            credentialStore: MemoryCredentials(),
+            notesSink: notes,
+            notionSink: SuccessfulNotionSink()
+        )
+
+        let first = model.testNotesConnection()
+        let second = model.testNotesConnection()
+        await notes.waitUntilTestStarted()
+        await notes.finishSuccessfully()
+        await first.value
+        await second.value
+
+        let connectionCallCount = await notes.connectionCallCount
+        XCTAssertEqual(connectionCallCount, 1)
+        XCTAssertEqual(coordinator.destinations, [.appleNotes])
     }
 
     func testSuccessfulNotesConnectionRetriesOnlyNotesDestination() async throws {
@@ -137,6 +212,41 @@ private actor SuccessfulNotesSink: NotesSessionSink {
     private(set) var connectionCallCount = 0
     func deliver(_ session: CompletedSession, to target: NotesTarget) async throws -> DeliveryResult { .created }
     func testConnection(to target: NotesTarget) async throws { connectionCallCount += 1 }
+}
+
+private actor SuspendedNotesSink: NotesSessionSink {
+    private var continuation: CheckedContinuation<Void, Error>?
+    private(set) var connectionCallCount = 0
+
+    func deliver(_ session: CompletedSession, to target: NotesTarget) async throws -> DeliveryResult { .created }
+
+    func testConnection(to target: NotesTarget) async throws {
+        connectionCallCount += 1
+        try await withCheckedThrowingContinuation { continuation = $0 }
+    }
+
+    func waitUntilTestStarted() async {
+        while continuation == nil { await Task.yield() }
+    }
+
+    func finishSuccessfully() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private actor SuccessfulNotionSink: NotionSessionSink {
+    func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws -> DeliveryResult { .created }
+    func testConnection(configuration: NotionConfiguration) async throws {}
+}
+
+private actor FailingNotionSink: NotionSessionSink {
+    let error: DeliveryError
+
+    init(error: DeliveryError) { self.error = error }
+
+    func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws -> DeliveryResult { throw error }
+    func testConnection(configuration: NotionConfiguration) async throws { throw error }
 }
 
 @MainActor private final class CompositionRefreshScheduler: RefreshScheduling {
