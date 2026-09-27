@@ -198,14 +198,20 @@ private struct ActivityTableView: NSViewRepresentable {
                     guard let activity = self?.activity(at: actionRow) else { return }
                     self?.configuration?.onSetPinned(activity, !activity.isPinned)
                 }
+                action.image = NSImage(
+                    systemSymbolName: activity.isPinned ? "pin.slash.fill" : "pin.fill",
+                    accessibilityDescription: activity.isPinned ? "Unpin" : "Pin"
+                )
                 action.backgroundColor = .controlAccentColor
                 return [action]
             case .trailing:
                 guard activity.id != configuration?.activeActivityID else { return [] }
-                return [NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, actionRow in
+                let action = NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, actionRow in
                     guard let activity = self?.activity(at: actionRow) else { return }
                     self?.configuration?.onDelete(activity)
-                }]
+                }
+                action.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete")
+                return [action]
             @unknown default:
                 return []
             }

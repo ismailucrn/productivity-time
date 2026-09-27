@@ -36,13 +36,19 @@ struct TimerPanelView: View {
                     }
                 }
 
-                Picker("Mode", selection: $isTimerMode) {
-                    Text("Stopwatch").tag(false)
-                    Text("Timer").tag(true)
+                HStack {
+                    Spacer(minLength: 0)
+                    Picker("Mode", selection: $isTimerMode) {
+                        Text("Stopwatch").tag(false)
+                        Text("Timer").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    .accessibilityIdentifier("timer.mode")
+                    .disabled(model.activeSession != nil)
+                    Spacer(minLength: 0)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("timer.mode")
-                .disabled(model.activeSession != nil)
 
                 if isTimerMode {
                     Stepper("Duration: \(minutes) minutes", value: $minutes, in: 1...1_440)
