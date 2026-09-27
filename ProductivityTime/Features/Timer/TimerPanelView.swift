@@ -28,6 +28,12 @@ struct TimerPanelView: View {
                 if let activeSession = model.activeSession {
                     Text(SessionPresentation.timerStateText(activeSession.state))
                         .foregroundStyle(.secondary)
+                    if activeSession.mode == .stopwatch {
+                        Text("Complete to record this session. Discard to cancel without saving.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 Picker("Mode", selection: $isTimerMode) {

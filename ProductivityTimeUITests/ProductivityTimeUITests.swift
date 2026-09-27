@@ -100,6 +100,7 @@ final class ProductivityTimeUITests: XCTestCase {
         app.buttons["timer.primary"].click()
         XCTAssertTrue(app.buttons["timer.complete"].exists)
         XCTAssertTrue(app.buttons["timer.discard"].exists)
+        XCTAssertTrue(app.staticTexts["Complete to record this session. Discard to cancel without saving."].exists)
     }
 
     func testActivityCreationAndKeyboardFocus() {
