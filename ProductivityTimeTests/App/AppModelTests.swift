@@ -17,6 +17,19 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.selectedActivityID, activity.id)
     }
 
+    // Would fail if pinning reached persistence but AppModel left its published
+    // activity list stale for SwiftUI.
+    func testSettingActivityPinnedRefreshesActivities() throws {
+        let repository = InMemorySessionRepository()
+        let model = AppModel(repository: repository, clock: TestClock(date: .now), refreshScheduler: TestRefreshScheduler())
+        let activity = try model.createActivity(named: "Writing")
+
+        try model.setActivityPinned(activity.id, isPinned: true)
+
+        XCTAssertEqual(model.activities.map(\.id), [activity.id])
+        XCTAssertEqual(model.activities.first?.isPinned, true)
+    }
+
     func testDeleteClearsSelectionAndRejectsTheActiveActivity() throws {
         let repository = InMemorySessionRepository()
         let model = AppModel(repository: repository, clock: TestClock(date: .now), refreshScheduler: TestRefreshScheduler())
@@ -521,7 +534,7 @@ private final class InMemorySessionRepository: SessionRepository {
     var shouldFailLoadingCompletedSessions = false
 
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity {
-        let activity = Activity(id: UUID(), name: name, createdAt: createdAt)
+        let activity = Activity(id: UUID(), name: name, createdAt: createdAt, isPinned: false)
         storedActivities.append(activity)
         return activity
     }
@@ -533,7 +546,7 @@ private final class InMemorySessionRepository: SessionRepository {
         guard !storedActivities.contains(where: { $0.id != id && $0.name == name }) else {
             throw SessionRepositoryError.activityNameConflict
         }
-        let activity = Activity(id: id, name: name, createdAt: storedActivities[index].createdAt)
+        let activity = Activity(id: id, name: name, createdAt: storedActivities[index].createdAt, isPinned: storedActivities[index].isPinned)
         storedActivities[index] = activity
         return activity
     }
@@ -547,7 +560,20 @@ private final class InMemorySessionRepository: SessionRepository {
         }
         storedActivities.remove(at: index)
     }
-    func activities() throws -> [Activity] { storedActivities }
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws {
+        guard let index = storedActivities.firstIndex(where: { $0.id == id }) else {
+            throw SessionRepositoryError.activityNotFound
+        }
+        let activity = storedActivities[index]
+        storedActivities[index] = Activity(id: activity.id, name: activity.name, createdAt: activity.createdAt, isPinned: isPinned)
+    }
+    func activities() throws -> [Activity] {
+        storedActivities.sorted {
+            if $0.isPinned != $1.isPinned { return $0.isPinned && !$1.isPinned }
+            if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
     func saveCompleted(_ session: CompletedSession) throws {
         guard !shouldFailSavingCompletedSession else { throw TestRepositoryError.persistenceFailed }
         savedCompletedSessions.append(session)

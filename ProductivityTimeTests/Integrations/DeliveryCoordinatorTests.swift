@@ -284,6 +284,7 @@ private final class CoordinatorRepository: SessionRepository {
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity { throw SessionRepositoryError.activityNotFound }
     func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity { throw SessionRepositoryError.activityNotFound }
     func deleteActivity(_ id: UUID) throws {}
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws {}
     func activities() throws -> [Activity] { [] }
     func saveCompleted(_ session: CompletedSession) throws {}
     func completedSessions() throws -> [CompletedSession] {

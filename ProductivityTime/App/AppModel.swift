@@ -260,6 +260,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws {
+        try repository.setActivityPinned(id, isPinned: isPinned)
+        activities = try repository.activities()
+    }
+
     func selectActivity(_ activityID: UUID?) {
         selectedActivityID = activityID
     }

@@ -23,11 +23,30 @@ struct ActivityListView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            if activity.isPinned {
+                                Image(systemName: "pin.fill")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityLabel("Pinned")
+                            }
                         }
                     } icon: {
                         Image(systemName: model.activeSession?.activityID == activity.id ? "timer" : "circle")
                     }
                     .tag(activity.id)
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button(activity.isPinned ? "Unpin" : "Pin") {
+                            setPinned(activity, isPinned: !activity.isPinned)
+                        }
+                        .accessibilityIdentifier("activity.pin.\(activity.id.uuidString)")
+                        .tint(.accentColor)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("Delete", role: .destructive) {
+                            activityPendingDeletion = activity
+                        }
+                        .accessibilityIdentifier("activity.delete.\(activity.id.uuidString)")
+                        .disabled(model.activeSession?.activityID == activity.id)
+                    }
                     .contextMenu {
                         Button("Rename") { beginRename(activity) }
                         Button("Delete", role: .destructive) {
@@ -106,6 +125,14 @@ struct ActivityListView: View {
         do {
             try model.deleteActivity(activity.id)
             activityPendingDeletion = nil
+        } catch {
+            model.record(error)
+        }
+    }
+
+    private func setPinned(_ activity: Activity, isPinned: Bool) {
+        do {
+            try model.setActivityPinned(activity.id, isPinned: isPinned)
         } catch {
             model.record(error)
         }

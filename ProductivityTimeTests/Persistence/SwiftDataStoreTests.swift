@@ -36,6 +36,27 @@ final class SwiftDataStoreTests: XCTestCase {
         }
     }
 
+    // Would fail if pinning did not persist, or if the repository lost the
+    // createdAt/id ordering within either the pinned or unpinned group.
+    func testPinningAndUnpinningActivitiesPersistsAndSortsPinnedFirst() throws {
+        let oldest = try store.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
+        let middle = try store.createActivity(named: ActivityName("Writing"), createdAt: Date(timeIntervalSince1970: 200))
+        let newest = try store.createActivity(named: ActivityName("Planning"), createdAt: Date(timeIntervalSince1970: 300))
+
+        try store.setActivityPinned(newest.id, isPinned: true)
+        try store.setActivityPinned(middle.id, isPinned: true)
+
+        let restartedStore = try SwiftDataStore(container: container)
+        XCTAssertEqual(try restartedStore.activities().map(\.id), [middle.id, newest.id, oldest.id])
+        XCTAssertEqual(try restartedStore.activities().map(\.isPinned), [true, true, false])
+
+        try restartedStore.setActivityPinned(middle.id, isPinned: false)
+
+        let reloadedStore = try SwiftDataStore(container: container)
+        XCTAssertEqual(try reloadedStore.activities().map(\.id), [newest.id, oldest.id, middle.id])
+        XCTAssertEqual(try reloadedStore.activities().map(\.isPinned), [true, false, false])
+    }
+
     func testDeletingActivityWithActiveSnapshotIsRejected() throws {
         let activity = try store.createActivity(named: ActivityName("Reading"), createdAt: Date(timeIntervalSince1970: 100))
         try store.saveActive(makeSnapshot(activity: activity))

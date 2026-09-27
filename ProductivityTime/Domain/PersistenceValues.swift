@@ -4,6 +4,14 @@ struct Activity: Equatable, Sendable, Identifiable {
     let id: UUID
     let name: ActivityName
     let createdAt: Date
+    let isPinned: Bool
+
+    init(id: UUID, name: ActivityName, createdAt: Date, isPinned: Bool = false) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        self.isPinned = isPinned
+    }
 }
 
 enum SessionMode: String, Equatable, Sendable {

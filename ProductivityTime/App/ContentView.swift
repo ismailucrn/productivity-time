@@ -14,13 +14,14 @@ struct ContentView: View {
         }
         .frame(minWidth: 720, minHeight: 460)
         .toolbar {
-            Button { showingHistory = true } label: {
+            Button { showingHistory.toggle() } label: {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
             .accessibilityIdentifier("history.show")
-        }
-        .sheet(isPresented: $showingHistory) {
-            HistoryView()
+            .popover(isPresented: $showingHistory, arrowEdge: .top) {
+                HistoryView()
+                    .frame(minWidth: 440, idealWidth: 560, minHeight: 360, idealHeight: 520)
+            }
         }
         .alert("Resume previous session?", isPresented: Binding(get: { model.restorableSession != nil }, set: { _ in })) {
             Button("Resume") { perform { try model.resumeRestoredSession() } }.accessibilityIdentifier("restore.resume")

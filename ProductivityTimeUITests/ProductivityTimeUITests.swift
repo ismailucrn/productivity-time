@@ -2,6 +2,12 @@ import Foundation
 import XCTest
 
 final class ProductivityTimeUITests: XCTestCase {
+    private func emptyFixtureApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["--ui-test-fixture"]
+        return app
+    }
+
     private func discardRestorableSessionIfNeeded(in app: XCUIApplication) {
         let discard = app.buttons["restore.discard"]
         if discard.waitForExistence(timeout: 1) { discard.click() }
@@ -39,6 +45,20 @@ final class ProductivityTimeUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["history.show"].exists)
         XCTAssertFalse(app.buttons["settings.show"].exists)
+    }
+
+    func testHistoryClosesWhenNewActivityFieldReceivesFocus() {
+        let app = emptyFixtureApp()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+
+        app.buttons["history.show"].click()
+        let history = app.otherElements["history.list"]
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+
+        app.textFields["activity.name"].click()
+
+        XCTAssertTrue(history.waitForNonExistence(timeout: 5))
     }
 
     func testSettingsExposeNonSecretConnectionAndNotificationStatusIdentifiers() {
@@ -84,6 +104,47 @@ final class ProductivityTimeUITests: XCTestCase {
 
         XCTAssertTrue(app.menuItems["Rename"].exists)
         XCTAssertTrue(app.menuItems["Delete"].exists)
+    }
+
+    func testRightSwipePinsActivityAndThenExposesUnpin() {
+        let app = emptyFixtureApp()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+        let firstName = "First \(UUID().uuidString)"
+        let pinnedName = "Pinned \(UUID().uuidString)"
+        addActivity(named: firstName, in: app)
+        addActivity(named: pinnedName, in: app)
+
+        let pinnedActivity = app.outlines["Sidebar"].staticTexts[pinnedName]
+        XCTAssertTrue(pinnedActivity.waitForExistence(timeout: 5))
+        pinnedActivity.swipeRight()
+        let pin = app.buttons["Pin"]
+        XCTAssertTrue(pin.waitForExistence(timeout: 5))
+        pin.click()
+
+        XCTAssertLessThan(app.outlines["Sidebar"].staticTexts[pinnedName].frame.minY, app.outlines["Sidebar"].staticTexts[firstName].frame.minY)
+        app.outlines["Sidebar"].staticTexts[pinnedName].swipeRight()
+        XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout: 5))
+    }
+
+    func testLeftSwipeDeleteShowsExistingConfirmationBeforeRemovingActivity() {
+        let app = emptyFixtureApp()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+        let name = "Delete by Swipe \(UUID().uuidString)"
+        addActivity(named: name, in: app)
+
+        let activity = app.outlines["Sidebar"].staticTexts[name]
+        XCTAssertTrue(activity.waitForExistence(timeout: 5))
+        activity.swipeLeft()
+        let delete = app.buttons["Delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.click()
+
+        XCTAssertTrue(app.alerts["Delete Activity?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["activity.delete.confirm"].exists)
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(app.outlines["Sidebar"].staticTexts[name].exists)
     }
 
     func testTimerPanelExplainsEmptyStateAndContextualActions() {

@@ -58,9 +58,16 @@ final class SwiftDataStore: SessionRepository {
         try context.save()
     }
 
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws {
+        let record = try fetchActivity(id)
+        record.isPinned = isPinned
+        try context.save()
+    }
+
     func activities() throws -> [Activity] {
         let descriptor = FetchDescriptor<ActivityRecord>(sortBy: [SortDescriptor(\.createdAt), SortDescriptor(\.id)])
-        return try context.fetch(descriptor).map(\.activity)
+        let records = try context.fetch(descriptor)
+        return (records.filter { $0.isPinned ?? false } + records.filter { !($0.isPinned ?? false) }).map(\.activity)
     }
 
     func saveCompleted(_ session: CompletedSession) throws {

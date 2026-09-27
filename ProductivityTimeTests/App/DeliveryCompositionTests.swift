@@ -214,6 +214,7 @@ final class DeliveryCompositionTests: XCTestCase {
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity { let activity = Activity(id: UUID(), name: name, createdAt: createdAt); activitiesValue.append(activity); return activity }
     func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity { throw SessionRepositoryError.activityNotFound }
     func deleteActivity(_ id: UUID) throws {}
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws {}
     func activities() throws -> [Activity] { activitiesValue }
     func saveCompleted(_ session: CompletedSession) throws { sessions.append(session); records += DeliveryDestination.allCases.map { DestinationDelivery(sessionID: session.id, destination: $0, phase: .pending, errorCategory: nil, retryNotBefore: nil) } }
     func completedSessions() throws -> [CompletedSession] { sessions }

@@ -15,6 +15,7 @@ protocol SessionRepository {
     func createActivity(named name: ActivityName, createdAt: Date) throws -> Activity
     func renameActivity(_ id: UUID, to name: ActivityName) throws -> Activity
     func deleteActivity(_ id: UUID) throws
+    func setActivityPinned(_ id: UUID, isPinned: Bool) throws
     func activities() throws -> [Activity]
     func saveCompleted(_ session: CompletedSession) throws
     func completedSessions() throws -> [CompletedSession]
