@@ -194,7 +194,7 @@ private struct ActivityTableView: NSViewRepresentable {
             guard let activity = activity(at: row) else { return [] }
             switch edge {
             case .leading:
-                let action = NSTableViewRowAction(style: .regular, title: activity.isPinned ? "Unpin" : "Pin") { [weak self] _, actionRow in
+                let action = NSTableViewRowAction(style: .regular, title: "") { [weak self] _, actionRow in
                     guard let activity = self?.activity(at: actionRow) else { return }
                     self?.configuration?.onSetPinned(activity, !activity.isPinned)
                 }
@@ -206,7 +206,7 @@ private struct ActivityTableView: NSViewRepresentable {
                 return [action]
             case .trailing:
                 guard activity.id != configuration?.activeActivityID else { return [] }
-                let action = NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, actionRow in
+                let action = NSTableViewRowAction(style: .destructive, title: "") { [weak self] _, actionRow in
                     guard let activity = self?.activity(at: actionRow) else { return }
                     self?.configuration?.onDelete(activity)
                 }
