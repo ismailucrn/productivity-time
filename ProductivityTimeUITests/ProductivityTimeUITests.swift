@@ -49,9 +49,26 @@ final class ProductivityTimeUITests: XCTestCase {
         app.menuBars.menuBarItems["Productivity Time"].click()
         app.menuItems["Settings…"].click()
 
-        XCTAssertTrue(app.descendants(matching: .any)["settings.notes.status"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["settings.notion.status"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.notifications.status"].exists)
+        let notesStatus = app.descendants(matching: .any)["settings.notes.status"]
+        let notionStatus = app.descendants(matching: .any)["settings.notion.status"]
+        let notificationStatus = app.descendants(matching: .any)["settings.notifications.status"]
+        XCTAssertTrue(notesStatus.waitForExistence(timeout: 5))
+        XCTAssertTrue(notionStatus.exists)
+        XCTAssertTrue(notificationStatus.exists)
+        XCTAssertEqual(notesStatus.label, "Not tested")
+        XCTAssertEqual(notionStatus.label, "Not tested")
+        XCTAssertTrue(["Not requested", "Allowed", "Denied"].contains(notificationStatus.label))
+
+        let token = "ui-test-token-must-not-appear-in-status"
+        let dataSourceResponseBody = #"{"object":"data_source","id":"ui-test"}"#
+        app.descendants(matching: .any)["settings.notion.token"].click()
+        app.typeText(token)
+        app.descendants(matching: .any)["settings.notion.dataSource"].click()
+        app.typeText(dataSourceResponseBody)
+
+        let statusLabels = [notesStatus.label, notionStatus.label, notificationStatus.label].joined(separator: " ")
+        XCTAssertFalse(statusLabels.contains(token))
+        XCTAssertFalse(statusLabels.contains(dataSourceResponseBody))
     }
 
     func testActivityContextMenuOffersRenameAndDelete() {

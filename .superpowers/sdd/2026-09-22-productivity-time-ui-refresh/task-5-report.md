@@ -46,3 +46,22 @@
 
 - macOS Xcode test execution is unreliable in this host: sandboxed SwiftData macro loading fails, and unsandboxed test runs can leave incomplete result bundles without a terminal summary. A fresh developer-machine run of the focused suites, full suite, and Settings UI test remains required before release.
 - Direct Settings-window visual inspection was blocked because the computer-use app lookup timed out. The Settings UI target compiled, but natural-size visual inspection still needs a functioning macOS UI runner.
+
+## Review-fix pass
+
+- Added `testRepeatedNotionConnectionClicksShareOneOperationAndKeepNotesIndependent` with a suspended Notion sink. It verifies one Notion connection attempt and one Notion pending-delivery attempt across repeated Notion clicks while Notes remains idle and receives no attempt.
+- Extended `testSettingsExposeNonSecretConnectionAndNotificationStatusIdentifiers` to assert the Notes and Notion `Not tested` labels, accept the three valid notification authorization labels, and verify status labels omit a typed token sentinel and a typed Notion data-source response-body sentinel.
+
+### Review-fix commands and results
+
+1. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project ProductivityTime.xcodeproj -scheme ProductivityTime -destination 'platform=macOS,arch=arm64' -derivedDataPath ./DerivedData-task5-review -only-testing:ProductivityTimeTests/DeliveryCompositionTests CODE_SIGNING_ALLOWED=NO`
+   - Compiled application, unit-test, and UI-test targets. The streamed XCTest output explicitly reported `testRepeatedNotionConnectionClicksShareOneOperationAndKeepNotesIndependent` passed. Output was truncated before Xcode's terminal summary.
+
+2. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -project ProductivityTime.xcodeproj -scheme ProductivityTime -destination 'platform=macOS,arch=arm64' -derivedDataPath ./DerivedData-task5-review -only-testing:ProductivityTimeUITests/ProductivityTimeUITests/testSettingsExposeNonSecretConnectionAndNotificationStatusIdentifiers CODE_SIGNING_ALLOWED=NO`
+   - Compiled the expanded UI test target. The host stopped after build steps without emitting a UI test-session summary, matching the existing Xcode runner limitation.
+
+3. `rm -rf /Users/ismail/Desktop/projects/productivity-time/DerivedData-task5-review`
+   - Removed the review-pass repository-local build artifact.
+
+4. `git diff --check`
+   - Exit code `0`; no whitespace errors.

@@ -106,6 +106,40 @@ final class DeliveryCompositionTests: XCTestCase {
         XCTAssertEqual(coordinator.destinations, [.appleNotes])
     }
 
+    func testRepeatedNotionConnectionClicksShareOneOperationAndKeepNotesIndependent() async throws {
+        let notes = SuspendedNotesSink()
+        let notion = SuspendedNotionSink()
+        let coordinator = CompositionCoordinator()
+        let model = AppModel(
+            repository: CompositionRepository(),
+            clock: TestClock(date: .now),
+            refreshScheduler: CompositionRefreshScheduler(),
+            deliveryCoordinator: coordinator,
+            preferences: MemoryPreferences(),
+            credentialStore: MemoryCredentials(),
+            notesSink: notes,
+            notionSink: notion
+        )
+
+        let first = model.testNotionConnection()
+        let second = model.testNotionConnection()
+        await notion.waitUntilTestStarted()
+
+        XCTAssertEqual(model.notionConnectionTestState, .testing)
+        XCTAssertEqual(model.notesConnectionTestState, .idle)
+
+        await notion.finishSuccessfully()
+        await first.value
+        await second.value
+
+        let notionConnectionCallCount = await notion.connectionCallCount
+        let notesConnectionCallCount = await notes.connectionCallCount
+        XCTAssertEqual(notionConnectionCallCount, 1)
+        XCTAssertEqual(notesConnectionCallCount, 0)
+        XCTAssertEqual(model.notesConnectionTestState, .idle)
+        XCTAssertEqual(coordinator.destinations, [.notion])
+    }
+
     func testSuccessfulNotesConnectionRetriesOnlyNotesDestination() async throws {
         let repository = CompositionRepository()
         let session = makeSession()
@@ -238,6 +272,27 @@ private actor SuspendedNotesSink: NotesSessionSink {
 private actor SuccessfulNotionSink: NotionSessionSink {
     func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws -> DeliveryResult { .created }
     func testConnection(configuration: NotionConfiguration) async throws {}
+}
+
+private actor SuspendedNotionSink: NotionSessionSink {
+    private var continuation: CheckedContinuation<Void, Error>?
+    private(set) var connectionCallCount = 0
+
+    func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws -> DeliveryResult { .created }
+
+    func testConnection(configuration: NotionConfiguration) async throws {
+        connectionCallCount += 1
+        try await withCheckedThrowingContinuation { continuation = $0 }
+    }
+
+    func waitUntilTestStarted() async {
+        while continuation == nil { await Task.yield() }
+    }
+
+    func finishSuccessfully() {
+        continuation?.resume()
+        continuation = nil
+    }
 }
 
 private actor FailingNotionSink: NotionSessionSink {
