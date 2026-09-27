@@ -121,12 +121,16 @@ final class DeliveryCompositionTests: XCTestCase {
             notionSink: notion
         )
 
+        let notesOperation = model.testNotesConnection()
+        await notes.waitUntilTestStarted()
+        XCTAssertEqual(model.notesConnectionTestState, .testing)
+
         let first = model.testNotionConnection()
         let second = model.testNotionConnection()
         await notion.waitUntilTestStarted()
 
         XCTAssertEqual(model.notionConnectionTestState, .testing)
-        XCTAssertEqual(model.notesConnectionTestState, .idle)
+        XCTAssertEqual(model.notesConnectionTestState, .testing)
 
         await notion.finishSuccessfully()
         await first.value
@@ -135,9 +139,16 @@ final class DeliveryCompositionTests: XCTestCase {
         let notionConnectionCallCount = await notion.connectionCallCount
         let notesConnectionCallCount = await notes.connectionCallCount
         XCTAssertEqual(notionConnectionCallCount, 1)
-        XCTAssertEqual(notesConnectionCallCount, 0)
-        XCTAssertEqual(model.notesConnectionTestState, .idle)
+        XCTAssertEqual(notesConnectionCallCount, 1)
+        XCTAssertEqual(model.notionConnectionTestState, .succeeded)
+        XCTAssertEqual(model.notesConnectionTestState, .testing)
         XCTAssertEqual(coordinator.destinations, [.notion])
+
+        await notes.finishSuccessfully()
+        await notesOperation.value
+
+        XCTAssertEqual(model.notesConnectionTestState, .succeeded)
+        XCTAssertEqual(coordinator.destinations, [.notion, .appleNotes])
     }
 
     func testSuccessfulNotesConnectionRetriesOnlyNotesDestination() async throws {

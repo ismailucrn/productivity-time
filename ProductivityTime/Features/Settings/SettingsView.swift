@@ -94,19 +94,19 @@ struct SettingsView: View {
     private func connectionStatus(_ state: ConnectionTestState) -> some View {
         switch state {
         case .idle:
-            Label("Not tested", systemImage: "circle")
+            Label(SettingsStatusPresentation.connectionLabel(for: state), systemImage: "circle")
                 .foregroundStyle(.secondary)
         case .testing:
             HStack(spacing: 4) {
                 ProgressView()
                     .controlSize(.small)
-                Text("Testing connection")
+                Text(SettingsStatusPresentation.connectionLabel(for: state))
             }
         case .succeeded:
-            Label("Connected", systemImage: "checkmark.circle")
+            Label(SettingsStatusPresentation.connectionLabel(for: state), systemImage: "checkmark.circle")
                 .foregroundStyle(.green)
         case .failed:
-            Label("Connection failed", systemImage: "exclamationmark.triangle")
+            Label(SettingsStatusPresentation.connectionLabel(for: state), systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         }
     }
@@ -115,14 +115,33 @@ struct SettingsView: View {
     private func notificationStatus(_ state: NotificationAuthorizationState) -> some View {
         switch state {
         case .notDetermined:
-            Label("Not requested", systemImage: "bell")
+            Label(SettingsStatusPresentation.notificationLabel(for: state), systemImage: "bell")
                 .foregroundStyle(.secondary)
         case .authorized:
-            Label("Allowed", systemImage: "bell.badge")
+            Label(SettingsStatusPresentation.notificationLabel(for: state), systemImage: "bell.badge")
                 .foregroundStyle(.green)
         case .denied:
-            Label("Denied", systemImage: "bell.slash")
+            Label(SettingsStatusPresentation.notificationLabel(for: state), systemImage: "bell.slash")
                 .foregroundStyle(.red)
+        }
+    }
+}
+
+enum SettingsStatusPresentation {
+    static func connectionLabel(for state: ConnectionTestState) -> String {
+        switch state {
+        case .idle: "Not tested"
+        case .testing: "Testing connection"
+        case .succeeded: "Connected"
+        case .failed: "Connection failed"
+        }
+    }
+
+    static func notificationLabel(for state: NotificationAuthorizationState) -> String {
+        switch state {
+        case .notDetermined: "Not requested"
+        case .authorized: "Allowed"
+        case .denied: "Denied"
         }
     }
 }

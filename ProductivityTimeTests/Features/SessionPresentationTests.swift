@@ -2,6 +2,17 @@ import XCTest
 @testable import ProductivityTime
 
 final class SessionPresentationTests: XCTestCase {
+    func testSettingsStatusPresentationCoversEveryConnectionAndNotificationState() {
+        XCTAssertEqual(SettingsStatusPresentation.connectionLabel(for: .idle), "Not tested")
+        XCTAssertEqual(SettingsStatusPresentation.connectionLabel(for: .testing), "Testing connection")
+        XCTAssertEqual(SettingsStatusPresentation.connectionLabel(for: .succeeded), "Connected")
+        XCTAssertEqual(SettingsStatusPresentation.connectionLabel(for: .failed), "Connection failed")
+
+        XCTAssertEqual(SettingsStatusPresentation.notificationLabel(for: .notDetermined), "Not requested")
+        XCTAssertEqual(SettingsStatusPresentation.notificationLabel(for: .authorized), "Allowed")
+        XCTAssertEqual(SettingsStatusPresentation.notificationLabel(for: .denied), "Denied")
+    }
+
     func testClockTextUsesStableTwoDigitFieldsAndClampsNegativeValues() {
         XCTAssertEqual(SessionPresentation.clockText(for: .zero), "00:00:00")
         XCTAssertEqual(SessionPresentation.clockText(for: .seconds(3_661)), "01:01:01")
