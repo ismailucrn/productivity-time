@@ -14,14 +14,23 @@ struct ContentView: View {
         }
         .frame(minWidth: 720, minHeight: 460)
         .toolbar {
-            Button { showingHistory.toggle() } label: {
+            Button { showingHistory = true } label: {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
             .accessibilityIdentifier("history.show")
-            .popover(isPresented: $showingHistory, arrowEdge: .top) {
-                HistoryView()
-                    .frame(minWidth: 440, idealWidth: 560, minHeight: 360, idealHeight: 520)
+        }
+        .overlay {
+            if showingHistory {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { showingHistory = false }
+                    .accessibilityHidden(true)
             }
+        }
+        .sheet(isPresented: $showingHistory) {
+            HistoryView()
+                .presentationBackgroundInteraction(.enabled)
         }
         .alert("Resume previous session?", isPresented: Binding(get: { model.restorableSession != nil }, set: { _ in })) {
             Button("Resume") { perform { try model.resumeRestoredSession() } }.accessibilityIdentifier("restore.resume")

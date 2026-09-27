@@ -22,6 +22,12 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5))
     }
 
+    private func dragActivity(_ activity: XCUIElement, from start: CGVector, to end: CGVector) {
+        let startCoordinate = activity.coordinate(withNormalizedOffset: start)
+        let endCoordinate = activity.coordinate(withNormalizedOffset: end)
+        startCoordinate.press(forDuration: 0.1, thenDragTo: endCoordinate)
+    }
+
     func testWorkflowControlsExposeAccessibilityIdentifiers() {
         let app = XCUIApplication()
         app.launch()
@@ -47,7 +53,7 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["settings.show"].exists)
     }
 
-    func testHistoryClosesWhenNewActivityFieldReceivesFocus() {
+    func testHistorySheetStaysWithinMainWindowAndClosesWhenActivityFieldIsClicked() {
         let app = emptyFixtureApp()
         app.launch()
         discardRestorableSessionIfNeeded(in: app)
@@ -55,6 +61,11 @@ final class ProductivityTimeUITests: XCTestCase {
         app.buttons["history.show"].click()
         let history = app.otherElements["history.list"]
         XCTAssertTrue(history.waitForExistence(timeout: 5))
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(mainWindow.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(history.frame.width, mainWindow.frame.width)
+        XCTAssertLessThanOrEqual(history.frame.height, mainWindow.frame.height)
 
         app.textFields["activity.name"].click()
 
@@ -103,6 +114,7 @@ final class ProductivityTimeUITests: XCTestCase {
         activity.rightClick()
 
         XCTAssertTrue(app.menuItems["Rename"].exists)
+        XCTAssertTrue(app.menuItems["Pin"].exists)
         XCTAssertTrue(app.menuItems["Delete"].exists)
     }
 
@@ -117,13 +129,15 @@ final class ProductivityTimeUITests: XCTestCase {
 
         let pinnedActivity = app.outlines["Sidebar"].staticTexts[pinnedName]
         XCTAssertTrue(pinnedActivity.waitForExistence(timeout: 5))
-        pinnedActivity.swipeRight()
+        dragActivity(pinnedActivity, from: CGVector(dx: 0.2, dy: 0.5), to: CGVector(dx: 0.9, dy: 0.5))
         let pin = app.buttons["Pin"]
         XCTAssertTrue(pin.waitForExistence(timeout: 5))
         pin.click()
 
         XCTAssertLessThan(app.outlines["Sidebar"].staticTexts[pinnedName].frame.minY, app.outlines["Sidebar"].staticTexts[firstName].frame.minY)
-        app.outlines["Sidebar"].staticTexts[pinnedName].swipeRight()
+        let repinnedActivity = app.outlines["Sidebar"].staticTexts[pinnedName]
+        XCTAssertTrue(repinnedActivity.waitForExistence(timeout: 5))
+        dragActivity(repinnedActivity, from: CGVector(dx: 0.2, dy: 0.5), to: CGVector(dx: 0.9, dy: 0.5))
         XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout: 5))
     }
 
@@ -136,7 +150,7 @@ final class ProductivityTimeUITests: XCTestCase {
 
         let activity = app.outlines["Sidebar"].staticTexts[name]
         XCTAssertTrue(activity.waitForExistence(timeout: 5))
-        activity.swipeLeft()
+        dragActivity(activity, from: CGVector(dx: 0.8, dy: 0.5), to: CGVector(dx: 0.1, dy: 0.5))
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
         delete.click()
