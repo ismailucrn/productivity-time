@@ -19,13 +19,22 @@ final class ProductivityTimeUITests: XCTestCase {
         field.click()
         field.typeText(name)
         app.buttons["activity.add"].click()
-        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5))
+        XCTAssertTrue(activityRow(named: name, in: app).waitForExistence(timeout: 5))
     }
 
-    private func dragActivity(_ activity: XCUIElement, from start: CGVector, to end: CGVector) {
-        let startCoordinate = activity.coordinate(withNormalizedOffset: start)
-        let endCoordinate = activity.coordinate(withNormalizedOffset: end)
-        startCoordinate.press(forDuration: 0.1, thenDragTo: endCoordinate)
+    private func activityRow(named name: String, in app: XCUIApplication) -> XCUIElement {
+        app.tables["activity.table"].cells.containing(.staticText, identifier: name).firstMatch
+    }
+
+    private func mainWindow(in app: XCUIApplication) -> XCUIElement {
+        app.windows.allElementsBoundByIndex.max { first, second in
+            first.frame.width * first.frame.height < second.frame.width * second.frame.height
+        } ?? app.windows.firstMatch
+    }
+
+    private func clickHistoryBackdrop(in app: XCUIApplication) {
+        let window = mainWindow(in: app)
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.96, dy: 0.5)).click()
     }
 
     func testWorkflowControlsExposeAccessibilityIdentifiers() {
@@ -53,21 +62,37 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["settings.show"].exists)
     }
 
-    func testHistorySheetStaysWithinMainWindowAndClosesWhenActivityFieldIsClicked() {
+    func testHistorySheetKeepsOpenForContentClickAndClosesWhenBackdropIsClicked() {
         let app = emptyFixtureApp()
         app.launch()
         discardRestorableSessionIfNeeded(in: app)
 
         app.buttons["history.show"].click()
-        let history = app.otherElements["history.list"]
+        let history = app.descendants(matching: .any)["history.card"]
         XCTAssertTrue(history.waitForExistence(timeout: 5))
 
-        let mainWindow = app.windows.firstMatch
+        let mainWindow = mainWindow(in: app)
         XCTAssertTrue(mainWindow.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(history.frame.width, mainWindow.frame.width)
         XCTAssertLessThanOrEqual(history.frame.height, mainWindow.frame.height)
 
-        app.textFields["activity.name"].click()
+        history.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        XCTAssertTrue(history.exists)
+
+        clickHistoryBackdrop(in: app)
+        XCTAssertTrue(history.waitForNonExistence(timeout: 5))
+    }
+
+    func testHistoryClosesWhenEscapeIsPressed() {
+        let app = emptyFixtureApp()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+
+        app.buttons["history.show"].click()
+        let history = app.descendants(matching: .any)["history.card"]
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+
+        app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
 
         XCTAssertTrue(history.waitForNonExistence(timeout: 5))
     }
@@ -109,7 +134,7 @@ final class ProductivityTimeUITests: XCTestCase {
         let name = "Manage \(UUID().uuidString)"
         addActivity(named: name, in: app)
 
-        let activity = app.outlines["Sidebar"].staticTexts[name]
+        let activity = activityRow(named: name, in: app)
         XCTAssertTrue(activity.waitForExistence(timeout: 5))
         activity.rightClick()
 
@@ -118,7 +143,7 @@ final class ProductivityTimeUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Delete"].exists)
     }
 
-    func testRightSwipePinsActivityAndThenExposesUnpin() {
+    func testRightSwipePinsAndUnpinsActivity() {
         let app = emptyFixtureApp()
         app.launch()
         discardRestorableSessionIfNeeded(in: app)
@@ -127,18 +152,23 @@ final class ProductivityTimeUITests: XCTestCase {
         addActivity(named: firstName, in: app)
         addActivity(named: pinnedName, in: app)
 
-        let pinnedActivity = app.outlines["Sidebar"].staticTexts[pinnedName]
+        let pinnedActivity = activityRow(named: pinnedName, in: app)
         XCTAssertTrue(pinnedActivity.waitForExistence(timeout: 5))
-        dragActivity(pinnedActivity, from: CGVector(dx: 0.2, dy: 0.5), to: CGVector(dx: 0.9, dy: 0.5))
+        pinnedActivity.swipeRight()
         let pin = app.buttons["Pin"]
         XCTAssertTrue(pin.waitForExistence(timeout: 5))
+        XCTAssertTrue(pin.isHittable)
         pin.click()
 
-        XCTAssertLessThan(app.outlines["Sidebar"].staticTexts[pinnedName].frame.minY, app.outlines["Sidebar"].staticTexts[firstName].frame.minY)
-        let repinnedActivity = app.outlines["Sidebar"].staticTexts[pinnedName]
+        XCTAssertLessThan(activityRow(named: pinnedName, in: app).frame.minY, activityRow(named: firstName, in: app).frame.minY)
+        activityRow(named: pinnedName, in: app).swipeRight()
+        let unpin = app.buttons["Unpin"]
+        XCTAssertTrue(unpin.waitForExistence(timeout: 5))
+        XCTAssertTrue(unpin.isHittable)
+        unpin.click()
+        XCTAssertLessThan(activityRow(named: firstName, in: app).frame.minY, activityRow(named: pinnedName, in: app).frame.minY)
+        let repinnedActivity = activityRow(named: pinnedName, in: app)
         XCTAssertTrue(repinnedActivity.waitForExistence(timeout: 5))
-        dragActivity(repinnedActivity, from: CGVector(dx: 0.2, dy: 0.5), to: CGVector(dx: 0.9, dy: 0.5))
-        XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout: 5))
     }
 
     func testLeftSwipeDeleteShowsExistingConfirmationBeforeRemovingActivity() {
@@ -148,17 +178,38 @@ final class ProductivityTimeUITests: XCTestCase {
         let name = "Delete by Swipe \(UUID().uuidString)"
         addActivity(named: name, in: app)
 
-        let activity = app.outlines["Sidebar"].staticTexts[name]
+        let activity = activityRow(named: name, in: app)
         XCTAssertTrue(activity.waitForExistence(timeout: 5))
-        dragActivity(activity, from: CGVector(dx: 0.8, dy: 0.5), to: CGVector(dx: 0.1, dy: 0.5))
+        activity.swipeLeft()
         let delete = app.buttons["Delete"]
         XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        XCTAssertTrue(delete.isHittable)
         delete.click()
 
-        XCTAssertTrue(app.alerts["Delete Activity?"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["activity.delete.confirm"].exists)
-        app.buttons["Cancel"].click()
-        XCTAssertTrue(app.outlines["Sidebar"].staticTexts[name].exists)
+        let confirmation = app.sheets.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.buttons["Cancel"].exists)
+        confirmation.buttons["Cancel"].click()
+        XCTAssertTrue(activityRow(named: name, in: app).exists)
+    }
+
+    func testLeftSwipeOnActiveActivityDoesNotExposeDeleteOrDeleteConfirmation() {
+        let app = emptyFixtureApp()
+        app.launch()
+        discardRestorableSessionIfNeeded(in: app)
+        let name = "Active \(UUID().uuidString)"
+        addActivity(named: name, in: app)
+
+        app.buttons["timer.primary"].click()
+        XCTAssertTrue(app.buttons["timer.complete"].waitForExistence(timeout: 5))
+
+        let activeActivity = activityRow(named: name, in: app)
+        XCTAssertTrue(activeActivity.waitForExistence(timeout: 5))
+        activeActivity.swipeLeft()
+
+        XCTAssertFalse(app.buttons["Delete"].exists)
+        XCTAssertFalse(app.alerts["Delete Activity?"].exists)
+        XCTAssertTrue(activityRow(named: name, in: app).exists)
     }
 
     func testTimerPanelExplainsEmptyStateAndContextualActions() {

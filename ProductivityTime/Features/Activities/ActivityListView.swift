@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ActivityListView: View {
@@ -12,27 +13,15 @@ struct ActivityListView: View {
             Text("Activities")
                 .font(.headline)
 
-            List(selection: Binding(get: { model.selectedActivityID }, set: model.selectActivity)) {
-                ForEach(model.activities) { activity in
-                    ActivitySwipeRow(
-                        activity: activity,
-                        isActive: model.activeSession?.activityID == activity.id,
-                        setPinned: { setPinned(activity, isPinned: !activity.isPinned) },
-                        delete: { activityPendingDeletion = activity }
-                    )
-                    .tag(activity.id)
-                    .contextMenu {
-                        Button(activity.isPinned ? "Unpin" : "Pin") {
-                            setPinned(activity, isPinned: !activity.isPinned)
-                        }
-                        Button("Rename") { beginRename(activity) }
-                        Button("Delete", role: .destructive) {
-                            activityPendingDeletion = activity
-                        }
-                        .disabled(model.activeSession?.activityID == activity.id)
-                    }
-                }
-            }
+            ActivityTableView(
+                activities: model.activities,
+                activeActivityID: model.activeSession?.activityID,
+                selectedActivityID: model.selectedActivityID,
+                onSelect: model.selectActivity,
+                onSetPinned: setPinned,
+                onRename: beginRename,
+                onDelete: { activityPendingDeletion = $0 }
+            )
 
             if model.activities.isEmpty {
                 Text("Add your first activity below.")
@@ -116,150 +105,191 @@ struct ActivityListView: View {
     }
 }
 
-/// A visible macOS equivalent of swipe actions. Native `swipeActions` does not
-/// consistently reveal for a mouse or trackpad inside a sidebar list, so this
-/// row moves with the drag and exposes the available action beneath it.
-private struct ActivitySwipeRow: View {
-    private enum RevealedAction: Equatable {
-        case pin
-        case delete
+private struct ActivityTableView: NSViewRepresentable {
+    let activities: [Activity]
+    let activeActivityID: UUID?
+    let selectedActivityID: UUID?
+    let onSelect: (UUID?) -> Void
+    let onSetPinned: (Activity, Bool) -> Void
+    let onRename: (Activity) -> Void
+    let onDelete: (Activity) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let table = NSTableView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
+        table.addTableColumn(NSTableColumn(identifier: .init("activity")))
+        table.headerView = nil
+        table.style = .sourceList
+        table.selectionHighlightStyle = .regular
+        table.allowsMultipleSelection = false
+        table.allowsEmptySelection = true
+        table.rowHeight = 30
+        table.intercellSpacing = .zero
+        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        table.backgroundColor = .clear
+        table.focusRingType = .none
+        table.autoresizingMask = [.width]
+        table.setAccessibilityIdentifier("activity.table")
+        table.dataSource = context.coordinator
+        table.delegate = context.coordinator
+
+        let menu = NSMenu()
+        menu.delegate = context.coordinator
+        table.menu = menu
+
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = table
+        context.coordinator.tableView = table
+        context.coordinator.update(with: self)
+        return scrollView
     }
 
-    let activity: Activity
-    let isActive: Bool
-    let setPinned: () -> Void
-    let delete: () -> Void
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.update(with: self)
+    }
 
-    @State private var revealedAction: RevealedAction?
-    @State private var dragOffset: CGFloat = 0
+    @MainActor
+    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+        weak var tableView: NSTableView?
+        private var configuration: ActivityTableView?
+        private var isApplyingUpdate = false
+        private var contextActivityID: UUID?
 
-    private let actionWidth: CGFloat = 88
-    private let revealThreshold: CGFloat = 28
+        func update(with configuration: ActivityTableView) {
+            self.configuration = configuration
+            guard let tableView else { return }
+            isApplyingUpdate = true
+            tableView.reloadData()
+            resizeDocumentView(tableView, for: configuration.activities.count)
+            if let selectedActivityID = configuration.selectedActivityID,
+               let row = configuration.activities.firstIndex(where: { $0.id == selectedActivityID }) {
+                tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            } else {
+                tableView.deselectAll(nil)
+            }
+            isApplyingUpdate = false
+        }
 
-    var body: some View {
-        ZStack {
-            revealedActions
+        func numberOfRows(in tableView: NSTableView) -> Int { configuration?.activities.count ?? 0 }
 
-            Label {
-                HStack(spacing: 6) {
-                    Text(activity.name.value)
-                    Spacer(minLength: 4)
-                    if isActive {
-                        Text("Running")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if activity.isPinned {
-                        Image(systemName: "pin.fill")
-                            .foregroundStyle(.secondary)
-                            .accessibilityLabel("Pinned")
-                    }
+        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+            guard let activity = activity(at: row) else { return nil }
+            let identifier = NSUserInterfaceItemIdentifier("activity.cell")
+            let cell = (tableView.makeView(withIdentifier: identifier, owner: nil) as? ActivityTableCellView)
+                ?? ActivityTableCellView(frame: .zero)
+            cell.configure(activity: activity, isActive: activity.id == configuration?.activeActivityID)
+            return cell
+        }
+
+        func tableViewSelectionDidChange(_ notification: Notification) {
+            guard !isApplyingUpdate, let tableView else { return }
+            configuration?.onSelect(activity(at: tableView.selectedRow)?.id)
+        }
+
+        func tableView(_ tableView: NSTableView, rowActionsForRow row: Int, edge: NSTableView.RowActionEdge) -> [NSTableViewRowAction] {
+            guard let activity = activity(at: row) else { return [] }
+            switch edge {
+            case .leading:
+                let action = NSTableViewRowAction(style: .regular, title: activity.isPinned ? "Unpin" : "Pin") { [weak self] _, actionRow in
+                    guard let activity = self?.activity(at: actionRow) else { return }
+                    self?.configuration?.onSetPinned(activity, !activity.isPinned)
                 }
-            } icon: {
-                Image(systemName: isActive ? "timer" : "circle")
-            }
-            .padding(.vertical, 5)
-            .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .offset(x: displayedOffset)
-            .contentShape(Rectangle())
-            .simultaneousGesture(dragGesture)
-        }
-        .frame(maxWidth: .infinity)
-        .clipped()
-    }
-
-    @ViewBuilder
-    private var revealedActions: some View {
-        HStack(spacing: 0) {
-            if revealedAction == .pin || displayedOffset > 0 {
-                actionButton(
-                    title: activity.isPinned ? "Unpin" : "Pin",
-                    color: .accentColor,
-                    accessibilityIdentifier: "activity.pin.\(activity.id.uuidString)",
-                    action: {
-                        closeActions()
-                        setPinned()
-                    }
-                )
-            }
-
-            Spacer(minLength: 0)
-
-            if revealedAction == .delete || displayedOffset < 0 {
-                actionButton(
-                    title: "Delete",
-                    color: .red,
-                    disabled: isActive,
-                    accessibilityIdentifier: "activity.delete.\(activity.id.uuidString)",
-                    action: {
-                        closeActions()
-                        delete()
-                    }
-                )
+                action.backgroundColor = .controlAccentColor
+                return [action]
+            case .trailing:
+                guard activity.id != configuration?.activeActivityID else { return [] }
+                return [NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, actionRow in
+                    guard let activity = self?.activity(at: actionRow) else { return }
+                    self?.configuration?.onDelete(activity)
+                }]
+            @unknown default:
+                return []
             }
         }
-    }
 
-    private func actionButton(
-        title: String,
-        color: Color,
-        disabled: Bool = false,
-        accessibilityIdentifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(title, action: action)
-            .buttonStyle(.borderless)
-            .frame(width: actionWidth)
-            .frame(maxHeight: .infinity)
-            .foregroundStyle(.white)
-            .background(color)
-            .accessibilityIdentifier(accessibilityIdentifier)
-            .disabled(disabled)
-            .opacity(disabled ? 0.45 : 1)
-    }
-
-    private var displayedOffset: CGFloat {
-        if dragOffset != 0 {
-            return dragOffset
+        func menuNeedsUpdate(_ menu: NSMenu) {
+            menu.removeAllItems()
+            guard let tableView, let activity = activity(at: tableView.clickedRow) else { return }
+            contextActivityID = activity.id
+            let pin = menu.addItem(withTitle: activity.isPinned ? "Unpin" : "Pin", action: #selector(togglePinnedFromMenu), keyEquivalent: "")
+            pin.target = self
+            let rename = menu.addItem(withTitle: "Rename", action: #selector(renameFromMenu), keyEquivalent: "")
+            rename.target = self
+            let delete = menu.addItem(withTitle: "Delete", action: #selector(deleteFromMenu), keyEquivalent: "")
+            delete.target = self
+            delete.isEnabled = activity.id != configuration?.activeActivityID
         }
-        switch revealedAction {
-        case .pin: return actionWidth
-        case .delete: return -actionWidth
-        case nil: return 0
+
+        @objc private func togglePinnedFromMenu() {
+            guard let activity = contextActivity else { return }
+            configuration?.onSetPinned(activity, !activity.isPinned)
+        }
+
+        @objc private func renameFromMenu() { if let activity = contextActivity { configuration?.onRename(activity) } }
+
+        @objc private func deleteFromMenu() {
+            guard let activity = contextActivity, activity.id != configuration?.activeActivityID else { return }
+            configuration?.onDelete(activity)
+        }
+
+        private func activity(at row: Int) -> Activity? {
+            guard let activities = configuration?.activities, activities.indices.contains(row) else { return nil }
+            return activities[row]
+        }
+
+        private var contextActivity: Activity? {
+            guard let contextActivityID else { return nil }
+            return configuration?.activities.first(where: { $0.id == contextActivityID })
+        }
+
+        private func resizeDocumentView(_ tableView: NSTableView, for rowCount: Int) {
+            guard let scrollView = tableView.enclosingScrollView else { return }
+            let width = max(scrollView.contentSize.width, 1)
+            let rowsHeight = CGFloat(rowCount) * tableView.rowHeight
+            let height = max(rowsHeight, scrollView.contentSize.height)
+            tableView.setFrameSize(NSSize(width: width, height: height))
         }
     }
+}
 
-    private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { value in
-                let translation = value.translation.width
-                guard abs(translation) > abs(value.translation.height) else { return }
-                dragOffset = min(max(translation, -actionWidth), actionWidth)
-            }
-            .onEnded { value in
-                let translation = value.translation.width
-                guard abs(translation) > abs(value.translation.height) else {
-                    closeActions()
-                    return
-                }
-                withAnimation(.snappy) {
-                    if translation >= revealThreshold {
-                        revealedAction = .pin
-                    } else if translation <= -revealThreshold {
-                        revealedAction = .delete
-                    } else {
-                        revealedAction = nil
-                    }
-                    dragOffset = 0
-                }
-            }
+private final class ActivityTableCellView: NSTableCellView {
+    private let title = NSTextField(labelWithString: "")
+    private let status = NSTextField(labelWithString: "")
+    private let pin = NSImageView()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        identifier = NSUserInterfaceItemIdentifier("activity.cell")
+        title.lineBreakMode = .byTruncatingTail
+        status.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        status.textColor = .secondaryLabelColor
+        pin.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")
+        pin.contentTintColor = .secondaryLabelColor
+        [title, status, pin].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; addSubview($0) }
+        NSLayoutConstraint.activate([
+            title.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            title.centerYAnchor.constraint(equalTo: centerYAnchor),
+            status.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pin.leadingAnchor.constraint(equalTo: status.trailingAnchor, constant: 6),
+            pin.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            pin.centerYAnchor.constraint(equalTo: centerYAnchor),
+            pin.widthAnchor.constraint(equalToConstant: 14),
+            pin.heightAnchor.constraint(equalToConstant: 14),
+            title.trailingAnchor.constraint(lessThanOrEqualTo: status.leadingAnchor, constant: -6)
+        ])
     }
 
-    private func closeActions() {
-        withAnimation(.snappy) {
-            revealedAction = nil
-            dragOffset = 0
-        }
+    required init?(coder: NSCoder) { nil }
+
+    func configure(activity: Activity, isActive: Bool) {
+        title.stringValue = activity.name.value
+        title.setAccessibilityLabel(activity.name.value)
+        status.stringValue = isActive ? "Running" : ""
+        status.isHidden = !isActive
+        pin.isHidden = !activity.isPinned
     }
 }
