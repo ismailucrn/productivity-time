@@ -11,6 +11,12 @@ A native macOS app for tracking focused activities with a stopwatch or countdown
 - Resume or discard a session that was paused when the app quit. Time while the app is closed is not counted.
 - Receive an optional macOS notification when a timer completes.
 
+## Demo
+
+![Productivity Time walkthrough](docs/media/productivity-time-demo.gif)
+
+[Watch the walkthrough as MP4](docs/media/productivity-time-demo.mp4).
+
 ## Requirements
 
 - macOS 14 or later
