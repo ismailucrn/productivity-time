@@ -44,15 +44,15 @@
 - Use `integrations_implementer` for the MVP Apple Notes and Notion adapters, permissions, Keychain credentials, retries, idempotency, and integration tests.
 - Use `quality_implementer` for test infrastructure, regression tests, accessibility validation, build verification, and targeted fixes assigned by the orchestrator.
 - Use `github_manager` for GitHub workflows, branch management, pull requests, issue tracking, and release milestone coordination.
-- All implementation agents use `gpt-5.6-terra` with high reasoning effort.
-- The `github_manager` uses `gpt-5.6-luna` with high reasoning effort.
-- Use the read-only `orchestration_advisor`, which runs `gpt-5.6-sol` with high reasoning effort, only to review architecture, task decomposition, sequencing, and integration decisions. It must not implement code or perform the final security review.
+- All implementation agents use `gpt-6-luna` with extra-high reasoning effort.
+- The `github_manager` uses `gpt-6-luna` with high reasoning effort.
+- Use the read-only `orchestration_advisor`, which runs `gpt-6-sol` with high reasoning effort, only to review architecture, task decomposition, sequencing, and integration decisions. It must not implement code or perform the final security review.
 - Give every delegated write task explicit file ownership and acceptance criteria.
 - Run independent read-heavy tasks in parallel when useful. Run write-heavy tasks in parallel only when file ownership does not overlap; otherwise run them sequentially.
 - Require every implementer to report changed files, verification commands and results, and remaining risks.
-- After integration and repository-level verification, delegate a final read-only review to `security_reviewer`, which uses `gpt-5.6-terra` with high reasoning effort.
+- After integration and repository-level verification, delegate a final read-only review to `security_reviewer`, which uses `gpt-6-luna` with extra-high reasoning effort.
 - The final review must cover correctness, security, secrets, permissions, unsafe automation, data leakage, injection, concurrency, persistence, regressions, and missing tests.
-- Route each material finding back to the appropriate Terra implementer. Rerun verification and request a follow-up Terra security review before declaring completion.
+- Route each material finding back to the appropriate implementation agent. Rerun verification and request a follow-up security review before declaring completion.
 
 ## Git milestones
 
