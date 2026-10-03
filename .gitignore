@@ -9,6 +9,7 @@ DerivedData/
 .swiftpm/
 xcuserdata/
 *.xcuserstate
-dist/ProductivityTime-1.0.app/
-dist/ProductivityTime-1.0.dmg
-dist/.ProductivityTime-1.0-package-owned
+dist/ProductivityTime.app/
+dist/ProductivityTime.dmg
+dist/.ProductivityTime-package-owned
+dist/archive/ProductivityTime-previous*.app/

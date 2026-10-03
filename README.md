@@ -18,6 +18,10 @@ A native macOS app for tracking focused activities with a stopwatch or countdown
 - Apple Notes for Notes delivery
 - A Notion workspace and internal integration for Notion delivery (optional)
 
+## Download
+
+Download the latest macOS disk image from [ProductivityTime.dmg](https://github.com/ismailucrn/productivity-time/releases/latest/download/ProductivityTime.dmg). Open it and drag **ProductivityTime.app** to **Applications**. The app is ad hoc signed and not notarized, so macOS may require you to approve opening it in **System Settings → Privacy & Security**.
+
 The project uses Swift 6, SwiftUI, SwiftData, and system frameworks. It has no third-party package dependencies.
 
 ## Build and run
@@ -30,7 +34,7 @@ To create a macOS app and an installable disk image with the selected soft sage 
 ./scripts/package-macos.sh
 ```
 
-The checked-in `ProductivityTime/Resources/ProductivityTime-Icon-Source.png` is the source artwork. Packaging clips only to the rounded-square app icon frame, generates all ICNS sizes and a preview from that PNG, and verifies that the ICNS bytes match in the app and disk image. The script builds a universal Release app and writes `dist/ProductivityTime-1.0.app` and `dist/ProductivityTime-1.0.dmg`. Open the DMG and drag **ProductivityTime.app** onto the **Applications** shortcut. The app is ad hoc signed for local use and is not notarized; distributing it to other Macs requires signing with a Developer ID and notarizing it.
+The checked-in `ProductivityTime/Resources/ProductivityTime-Icon-Source.png` is the source artwork. Packaging clips only to the rounded-square app icon frame, generates all ICNS sizes and a preview from that PNG, and verifies that the ICNS bytes match in the app and disk image. The script builds a universal Release app and writes `dist/ProductivityTime.app` and `dist/ProductivityTime.dmg`. Open the DMG and drag **ProductivityTime.app** onto the **Applications** shortcut. The app is ad hoc signed for local use and is not notarized; distributing it to other Macs requires signing with a Developer ID and notarizing it.
 
 To build from Terminal, keep build products inside the repository:
 
