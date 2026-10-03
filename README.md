@@ -24,6 +24,14 @@ The project uses Swift 6, SwiftUI, SwiftData, and system frameworks. It has no t
 
 Open `ProductivityTime.xcodeproj` in Xcode, select the `ProductivityTime` scheme, and run it on this Mac.
 
+To create a macOS app and an installable disk image with the Productivity Time clock icon, run:
+
+```sh
+./scripts/package-macos.sh
+```
+
+The script builds a universal Release app and writes `dist/ProductivityTime-1.0.app` and `dist/ProductivityTime-1.0.dmg`. Open the DMG and drag **ProductivityTime.app** onto the **Applications** shortcut. The app is ad hoc signed for local use and is not notarized; distributing it to other Macs requires signing with a Developer ID and notarizing it.
+
 To build from Terminal, keep build products inside the repository:
 
 ```sh

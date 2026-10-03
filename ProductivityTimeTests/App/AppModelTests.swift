@@ -396,7 +396,8 @@ final class AppModelTests: XCTestCase {
         clock.advance(by: .seconds(60))
 
         try model.completeTimerIfDueForTesting()
-        await Task.yield()
+        let deliveryStarted = await delivery.waitForDeliverAllCallCount(1)
+        XCTAssertTrue(deliveryStarted)
 
         XCTAssertEqual(repository.savedCompletedSessions.count, 1)
         XCTAssertEqual(Set(repository.jobs.map(\.destination)), Set(DeliveryDestination.allCases))
@@ -418,7 +419,8 @@ final class AppModelTests: XCTestCase {
         let activity = try model.createActivity(named: "Writing")
 
         try model.startTimer(for: activity.id, duration: .seconds(60))
-        await Task.yield()
+        let firstRequestScheduled = await notifications.waitForRequestCount(1)
+        XCTAssertTrue(firstRequestScheduled)
         let first = await notifications.requests
         XCTAssertEqual(first.count, 1)
         XCTAssertEqual(first[0].deadline, Date(timeIntervalSince1970: 1_060))
@@ -426,12 +428,15 @@ final class AppModelTests: XCTestCase {
 
         clock.advance(by: .seconds(10))
         try model.pause()
-        await Task.yield()
+        let pauseRemovalCompleted = await notifications.waitForRemovalCount(1)
+        XCTAssertTrue(pauseRemovalCompleted)
         let removed = await notifications.removed
-        XCTAssertEqual(removed, [identifier])
+        XCTAssertFalse(removed.isEmpty)
+        XCTAssertTrue(removed.allSatisfy { $0 == identifier })
 
         try model.resume()
-        await Task.yield()
+        let resumedRequestScheduled = await notifications.waitForRequestCount(2)
+        XCTAssertTrue(resumedRequestScheduled)
         let requests = await notifications.requests
         XCTAssertEqual(requests.count, 2)
         XCTAssertEqual(requests[1].identifier, identifier)
@@ -469,26 +474,39 @@ final class AppModelTests: XCTestCase {
         let activity = try model.createActivity(named: "Writing")
 
         try model.startStopwatch(for: activity.id)
-        await Task.yield()
         let stopwatchRequests = await notifications.requests
         XCTAssertTrue(stopwatchRequests.isEmpty)
         try model.cancel()
+        let removedAfterStopwatchCancel = await notifications.removed
+        XCTAssertTrue(removedAfterStopwatchCancel.isEmpty)
 
         try model.startTimer(for: activity.id, duration: .seconds(60))
-        await Task.yield()
+        let firstTimerRequestScheduled = await notifications.waitForRequestCount(1)
+        XCTAssertTrue(firstTimerRequestScheduled)
         let timerRequests = await notifications.requests
         let identifier = try XCTUnwrap(timerRequests.first?.identifier)
         try model.cancel()
-        await Task.yield()
+        let cancellationRemovalCompleted = await notifications.waitForRemovalCount(1)
+        XCTAssertTrue(cancellationRemovalCompleted)
         let removedAfterCancel = await notifications.removed
-        XCTAssertEqual(removedAfterCancel, [identifier])
+        XCTAssertFalse(removedAfterCancel.isEmpty)
+        XCTAssertTrue(removedAfterCancel.allSatisfy { $0 == identifier })
+        let cancellationRemovalCount = removedAfterCancel.count
 
         try model.startTimer(for: activity.id, duration: .seconds(60))
+        let secondTimerRequestScheduled = await notifications.waitForRequestCount(2)
+        XCTAssertTrue(secondTimerRequestScheduled)
+        let secondTimerRequests = await notifications.requests
+        XCTAssertEqual(secondTimerRequests.count, 2)
+        let secondIdentifier = try XCTUnwrap(secondTimerRequests.last?.identifier)
         clock.advance(by: .seconds(60))
         try model.completeTimerIfDueForTesting()
-        await Task.yield()
+        let completionRemovalCompleted = await notifications.waitForRemovalCount(cancellationRemovalCount + 1)
+        XCTAssertTrue(completionRemovalCompleted)
         let removed = await notifications.removed
-        XCTAssertEqual(removed.count, 2)
+        let completionRemovals = Array(removed.dropFirst(cancellationRemovalCount))
+        XCTAssertFalse(completionRemovals.isEmpty)
+        XCTAssertTrue(completionRemovals.allSatisfy { $0 == secondIdentifier })
     }
 
     func testDeniedTimerNotificationAuthorizationLeavesTimerRunningAndReportsSanitizedError() async throws {
@@ -653,6 +671,15 @@ private final class RecordingDeliveryCoordinator: DeliveryCoordinating {
     func retry(sessionID: UUID, destination: DeliveryDestination) async -> DeliveryAttemptResult {
         DeliveryAttemptResult(sessionID: sessionID, destination: destination, outcome: .skipped)
     }
+
+    func waitForDeliverAllCallCount(_ count: Int) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while deliverAllCallCountSynchronously < count, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return deliverAllCallCountSynchronously >= count
+    }
 }
 
 private actor RecordingNotificationScheduler: NotificationScheduling {
@@ -669,4 +696,22 @@ private actor RecordingNotificationScheduler: NotificationScheduling {
         requests.append(TimerNotificationRequest(identifier: identifier, deadline: deadline, title: title))
     }
     func remove(identifier: String) async { removed.append(identifier) }
+
+    func waitForRequestCount(_ count: Int) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while requests.count < count, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return requests.count >= count
+    }
+
+    func waitForRemovalCount(_ count: Int) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while removed.count < count, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return removed.count >= count
+    }
 }

@@ -52,7 +52,8 @@ final class DeliveryCompositionTests: XCTestCase {
         )
 
         let operation = model.testNotesConnection()
-        await notes.waitUntilTestStarted()
+        let connectionStarted = await notes.waitUntilTestStarted()
+        XCTAssertTrue(connectionStarted)
         XCTAssertEqual(model.notesConnectionTestState, .testing)
 
         await notes.finishSuccessfully()
@@ -96,7 +97,8 @@ final class DeliveryCompositionTests: XCTestCase {
 
         let first = model.testNotesConnection()
         let second = model.testNotesConnection()
-        await notes.waitUntilTestStarted()
+        let connectionStarted = await notes.waitUntilTestStarted()
+        XCTAssertTrue(connectionStarted)
         await notes.finishSuccessfully()
         await first.value
         await second.value
@@ -122,12 +124,14 @@ final class DeliveryCompositionTests: XCTestCase {
         )
 
         let notesOperation = model.testNotesConnection()
-        await notes.waitUntilTestStarted()
+        let notesConnectionStarted = await notes.waitUntilTestStarted()
+        XCTAssertTrue(notesConnectionStarted)
         XCTAssertEqual(model.notesConnectionTestState, .testing)
 
         let first = model.testNotionConnection()
         let second = model.testNotionConnection()
-        await notion.waitUntilTestStarted()
+        let notionConnectionStarted = await notion.waitUntilTestStarted()
+        XCTAssertTrue(notionConnectionStarted)
 
         XCTAssertEqual(model.notionConnectionTestState, .testing)
         XCTAssertEqual(model.notesConnectionTestState, .testing)
@@ -172,8 +176,8 @@ final class DeliveryCompositionTests: XCTestCase {
         )
         try model.loadPersistedState()
 
-        model.testNotesConnection()
-        await Task.yield()
+        let operation = model.testNotesConnection()
+        await operation.value
 
         let destinations = await coordinator.destinations
         let connectionCalls = await notes.connectionCallCount
@@ -194,7 +198,8 @@ final class DeliveryCompositionTests: XCTestCase {
         try model.loadPersistedState()
 
         model.retryDelivery(sessionID: session.id, destination: .notion)
-        await Task.yield()
+        let retryStarted = await coordinator.waitForRetryCount(1)
+        XCTAssertTrue(retryStarted)
 
         let retries = await coordinator.retries
         XCTAssertEqual(retries.count, 1)
@@ -237,6 +242,15 @@ final class DeliveryCompositionTests: XCTestCase {
     func deliverAllPending() async -> [DeliveryAttemptResult] { [] }
     func deliverPending(destination: DeliveryDestination) async -> [DeliveryAttemptResult] { destinations.append(destination); return [] }
     func retry(sessionID: UUID, destination: DeliveryDestination) async -> DeliveryAttemptResult { retries.append((sessionID, destination)); return DeliveryAttemptResult(sessionID: sessionID, destination: destination, outcome: .skipped) }
+
+    func waitForRetryCount(_ count: Int) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while retries.count < count, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return retries.count >= count
+    }
 }
 
 @MainActor private final class MemoryPreferences: AppPreferences {
@@ -263,19 +277,27 @@ private actor SuccessfulNotesSink: NotesSessionSink {
 private actor SuspendedNotesSink: NotesSessionSink {
     private var continuation: CheckedContinuation<Void, Error>?
     private(set) var connectionCallCount = 0
+    private var shouldFinishConnection = false
 
     func deliver(_ session: CompletedSession, to target: NotesTarget) async throws -> DeliveryResult { .created }
 
     func testConnection(to target: NotesTarget) async throws {
         connectionCallCount += 1
+        if shouldFinishConnection { return }
         try await withCheckedThrowingContinuation { continuation = $0 }
     }
 
-    func waitUntilTestStarted() async {
-        while continuation == nil { await Task.yield() }
+    func waitUntilTestStarted() async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while continuation == nil, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return continuation != nil
     }
 
     func finishSuccessfully() {
+        shouldFinishConnection = true
         continuation?.resume()
         continuation = nil
     }
@@ -289,19 +311,27 @@ private actor SuccessfulNotionSink: NotionSessionSink {
 private actor SuspendedNotionSink: NotionSessionSink {
     private var continuation: CheckedContinuation<Void, Error>?
     private(set) var connectionCallCount = 0
+    private var shouldFinishConnection = false
 
     func deliver(_ session: CompletedSession, configuration: NotionConfiguration) async throws -> DeliveryResult { .created }
 
     func testConnection(configuration: NotionConfiguration) async throws {
         connectionCallCount += 1
+        if shouldFinishConnection { return }
         try await withCheckedThrowingContinuation { continuation = $0 }
     }
 
-    func waitUntilTestStarted() async {
-        while continuation == nil { await Task.yield() }
+    func waitUntilTestStarted() async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while continuation == nil, clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return continuation != nil
     }
 
     func finishSuccessfully() {
+        shouldFinishConnection = true
         continuation?.resume()
         continuation = nil
     }
