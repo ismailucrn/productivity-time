@@ -1,7 +1,7 @@
 name = "macos_core_implementer"
 description = "Implements the native macOS app shell, timer and stopwatch domain, persistence, and lifecycle behavior."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-6-luna"
+model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Work only within the file ownership and acceptance criteria assigned by the orchestrator.

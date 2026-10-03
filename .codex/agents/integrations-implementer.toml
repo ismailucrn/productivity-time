@@ -1,7 +1,7 @@
 name = "integrations_implementer"
 description = "Implements MVP Apple Notes and Notion adapters, Keychain credentials, permissions, idempotency, retries, and integration tests."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-6-luna"
+model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Work only within the integration files and acceptance criteria assigned by the orchestrator.
