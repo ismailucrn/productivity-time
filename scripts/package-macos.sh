@@ -18,8 +18,14 @@ FINAL_DMG="$DIST_DIR/ProductivityTime-1.0.dmg"
 OWNERSHIP_MARKER="$DIST_DIR/.ProductivityTime-1.0-package-owned"
 PUBLISH_APP="$DIST_DIR/.ProductivityTime-1.0.app.$$.tmp"
 PUBLISH_DMG="$DIST_DIR/.ProductivityTime-1.0.dmg.$$.tmp"
+SOURCE_ICON="$ROOT/ProductivityTime/Resources/ProductivityTime-Icon-Source.png"
+RESOURCE_ICON="$ROOT/ProductivityTime/Resources/ProductivityTime.icns"
 
 mkdir -p "$WORK_DIR" "$DIST_DIR"
+if [[ ! -s "$SOURCE_ICON" ]]; then
+    echo "The selected app icon source is missing: $SOURCE_ICON" >&2
+    exit 1
+fi
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
     echo "Another packaging run is already using $WORK_DIR; refusing to run concurrently." >&2
     exit 2
@@ -47,8 +53,13 @@ xcrun swiftc \
     -o "$WORK_DIR/GenerateAppIcon" \
     "$ROOT/scripts/GenerateAppIcon.swift"
 "$WORK_DIR/GenerateAppIcon" "$ICON_WORK_DIR"
-cp "$ICON_WORK_DIR/ProductivityTime.icns" "$ROOT/ProductivityTime/Resources/ProductivityTime.icns"
+cp "$ICON_WORK_DIR/ProductivityTime.icns" "$RESOURCE_ICON"
 cp "$ICON_WORK_DIR/ProductivityTime-Icon-Preview.png" "$ROOT/ProductivityTime/Resources/ProductivityTime-Icon-Preview.png"
+PREVIEW_DIMENSIONS="$(sips -g pixelWidth -g pixelHeight "$ROOT/ProductivityTime/Resources/ProductivityTime-Icon-Preview.png" | awk '/pixelWidth/ { width=$2 } /pixelHeight/ { height=$2 } END { print width "x" height }')"
+if [[ "$PREVIEW_DIMENSIONS" != "1024x1024" ]]; then
+    echo "Expected a 1024x1024 generated icon preview, got: $PREVIEW_DIMENSIONS" >&2
+    exit 1
+fi
 
 xcodebuild \
     -project ProductivityTime.xcodeproj \
@@ -74,6 +85,10 @@ codesign --force --deep --options runtime \
     --entitlements "$ROOT/ProductivityTime/Resources/ProductivityTime.entitlements" \
     --sign - "$PACKAGED_APP"
 codesign --verify --deep --strict --verbose=2 "$PACKAGED_APP"
+if ! cmp -s "$RESOURCE_ICON" "$PACKAGED_APP/Contents/Resources/ProductivityTime.icns"; then
+    echo "The packaged app icon differs from the generated icon resource." >&2
+    exit 1
+fi
 
 EXECUTABLE="$PACKAGED_APP/Contents/MacOS/ProductivityTime"
 ARCHITECTURES="$(lipo -archs "$EXECUTABLE")"
@@ -109,6 +124,11 @@ if [[ ! -d "$MOUNT_DIR/ProductivityTime.app" || "$(readlink "$MOUNT_DIR/Applicat
     echo "The disk image does not contain the app and Applications shortcut." >&2
     exit 1
 fi
+if ! cmp -s "$RESOURCE_ICON" "$MOUNT_DIR/ProductivityTime.app/Contents/Resources/ProductivityTime.icns"; then
+    hdiutil detach "$MOUNT_DIR" >/dev/null
+    echo "The disk image app icon differs from the generated icon resource." >&2
+    exit 1
+fi
 hdiutil detach "$MOUNT_DIR" >/dev/null
 
 ditto "$PACKAGED_APP" "$PUBLISH_APP"
@@ -122,3 +142,4 @@ echo "Created $FINAL_APP"
 echo "Created $FINAL_DMG"
 echo "Architectures: $ARCHITECTURES"
 echo "Signature: ad hoc, verified"
+shasum -a 256 "$SOURCE_ICON" "$RESOURCE_ICON" "$FINAL_APP/Contents/Resources/ProductivityTime.icns"
