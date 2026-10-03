@@ -30,6 +30,6 @@ swift \
   scripts/render-github-demo.swift
 ```
 
-The script writes 1200×850 frames in `.build/github-demo/`, plus both final files in this directory. It requires Swift with the macOS SDK and `ffmpeg` on `PATH`. The 20 second GIF is rendered at 12 fps and checked against an 8 MB size target; the MP4 uses H.264 with `yuv420p` for broad playback support.
+The script writes 1200×850 frames in `.build/github-demo/`, plus both final files in this directory. It requires Swift with the macOS SDK and `ffmpeg` on `PATH`. The GIF shows each of the five scenes for 1.6 seconds (8 seconds total) at 12 fps and is checked against an 8 MB size target. The MP4 keeps each scene for 4 seconds (20 seconds total) and uses H.264 with `yuv420p` for broad playback support.
 
 Captions follow the app's current UI: named activities, stopwatch pause and resume, explicit completion to record a stopwatch, timer presets, and separate Apple Notes and Notion delivery status. The History scenes carry a small “Demo data” note because the displayed delivery states are fixture examples.

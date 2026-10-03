@@ -75,13 +75,15 @@ private enum GitHubDemoRenderer {
             frameURLs.append(frame)
         }
 
-        let concatManifest = workDirectory.appendingPathComponent("scenes.txt")
-        try writeConcatManifest(frameURLs: frameURLs, to: concatManifest)
+        let gifManifest = workDirectory.appendingPathComponent("gif-scenes.txt")
+        let mp4Manifest = workDirectory.appendingPathComponent("mp4-scenes.txt")
+        try writeConcatManifest(frameURLs: frameURLs, secondsPerScene: 1.6, to: gifManifest)
+        try writeConcatManifest(frameURLs: frameURLs, secondsPerScene: 4, to: mp4Manifest)
 
         let gif = outputDirectory.appendingPathComponent("productivity-time-demo.gif")
         let mp4 = outputDirectory.appendingPathComponent("productivity-time-demo.mp4")
-        try makeGIF(manifest: concatManifest, destination: gif)
-        try makeMP4(manifest: concatManifest, destination: mp4)
+        try makeGIF(manifest: gifManifest, destination: gif)
+        try makeMP4(manifest: mp4Manifest, destination: mp4)
 
         let gifBytes = try fileSize(at: gif)
         let mp4Bytes = try fileSize(at: mp4)
@@ -180,7 +182,7 @@ private enum GitHubDemoRenderer {
             "-y", "-hide_banner", "-loglevel", "error",
             "-f", "concat", "-safe", "1", "-i", manifest.path,
             "-filter_complex", filter,
-            "-loop", "0", "-t", "20", "-gifflags", "+transdiff",
+            "-loop", "0", "-t", "8", "-gifflags", "+transdiff",
             destination.path
         ])
     }
@@ -196,8 +198,8 @@ private enum GitHubDemoRenderer {
         ])
     }
 
-    private static func writeConcatManifest(frameURLs: [URL], to url: URL) throws {
-        var lines = frameURLs.flatMap { ["file '\($0.lastPathComponent)'", "duration 4"] }
+    private static func writeConcatManifest(frameURLs: [URL], secondsPerScene: Double, to url: URL) throws {
+        var lines = frameURLs.flatMap { ["file '\($0.lastPathComponent)'", "duration \(secondsPerScene)"] }
         lines.append("file '\(frameURLs[frameURLs.count - 1].lastPathComponent)'")
         try (lines.joined(separator: "\n") + "\n").write(to: url, atomically: true, encoding: .utf8)
     }
